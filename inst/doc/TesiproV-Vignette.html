@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Konstantin Nille-Hauf, Tania Feiri, Marcus Ricker" />
+
+
+<title>TesiproV Vignette</title>
+
+<script src="data:application/javascript;base64,Ly8gUGFuZG9jIDIuOSBhZGRzIGF0dHJpYnV0ZXMgb24gYm90aCBoZWFkZXIgYW5kIGRpdi4gV2UgcmVtb3ZlIHRoZSBmb3JtZXIgKHRvCi8vIGJlIGNvbXBhdGlibGUgd2l0aCB0aGUgYmVoYXZpb3Igb2YgUGFuZG9jIDwgMi44KS4KZG9jdW1lbnQuYWRkRXZlbnRMaXN0ZW5lcignRE9NQ29udGVudExvYWRlZCcsIGZ1bmN0aW9uKGUpIHsKICB2YXIgaHMgPSBkb2N1bWVudC5xdWVyeVNlbGVjdG9yQWxsKCJkaXYuc2VjdGlvbltjbGFzcyo9J2xldmVsJ10gPiA6Zmlyc3QtY2hpbGQiKTsKICB2YXIgaSwgaCwgYTsKICBmb3IgKGkgPSAwOyBpIDwgaHMubGVuZ3RoOyBpKyspIHsKICAgIGggPSBoc1tpXTsKICAgIGlmICghL15oWzEtNl0kL2kudGVzdChoLnRhZ05hbWUpKSBjb250aW51ZTsgIC8vIGl0IHNob3VsZCBiZSBhIGhlYWRlciBoMS1oNgogICAgYSA9IGguYXR0cmlidXRlczsKICAgIHdoaWxlIChhLmxlbmd0aCA+IDApIGgucmVtb3ZlQXR0cmlidXRlKGFbMF0ubmFtZSk7CiAgfQp9KTsK"></script>
+
+<style type="text/css">
+  code{white-space: pre-wrap;}
+  span.smallcaps{font-variant: small-caps;}
+  span.underline{text-decoration: underline;}
+  div.column{display: inline-block; vertical-align: top; width: 50%;}
+  div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+  ul.task-list{list-style: none;}
+    </style>
+
+
+<style type="text/css">
+  code {
+    white-space: pre;
+  }
+  .sourceCode {
+    overflow: visible;
+  }
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    for (var j = 0; j < rules.length; j++) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") continue;
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') continue;
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<link rel="stylesheet" href="data:text/css,body%20%7B%0Abackground%2Dcolor%3A%20%23fff%3B%0Amargin%3A%201em%20auto%3B%0Amax%2Dwidth%3A%20700px%3B%0Aoverflow%3A%20visible%3B%0Apadding%2Dleft%3A%202em%3B%0Apadding%2Dright%3A%202em%3B%0Afont%2Dfamily%3A%20%22Open%20Sans%22%2C%20%22Helvetica%20Neue%22%2C%20Helvetica%2C%20Arial%2C%20sans%2Dserif%3B%0Afont%2Dsize%3A%2014px%3B%0Aline%2Dheight%3A%201%2E35%3B%0A%7D%0A%23TOC%20%7B%0Aclear%3A%20both%3B%0Amargin%3A%200%200%2010px%2010px%3B%0Apadding%3A%204px%3B%0Awidth%3A%20400px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Aborder%2Dradius%3A%205px%3B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Afont%2Dsize%3A%2013px%3B%0Aline%2Dheight%3A%201%2E3%3B%0A%7D%0A%23TOC%20%2Etoctitle%20%7B%0Afont%2Dweight%3A%20bold%3B%0Afont%2Dsize%3A%2015px%3B%0Amargin%2Dleft%3A%205px%3B%0A%7D%0A%23TOC%20ul%20%7B%0Apadding%2Dleft%3A%2040px%3B%0Amargin%2Dleft%3A%20%2D1%2E5em%3B%0Amargin%2Dtop%3A%205px%3B%0Amargin%2Dbottom%3A%205px%3B%0A%7D%0A%23TOC%20ul%20ul%20%7B%0Amargin%2Dleft%3A%20%2D2em%3B%0A%7D%0A%23TOC%20li%20%7B%0Aline%2Dheight%3A%2016px%3B%0A%7D%0Atable%20%7B%0Amargin%3A%201em%20auto%3B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dcolor%3A%20%23DDDDDD%3B%0Aborder%2Dstyle%3A%20outset%3B%0Aborder%2Dcollapse%3A%20collapse%3B%0A%7D%0Atable%20th%20%7B%0Aborder%2Dwidth%3A%202px%3B%0Apadding%3A%205px%3B%0Aborder%2Dstyle%3A%20inset%3B%0A%7D%0Atable%20td%20%7B%0Aborder%2Dwidth%3A%201px%3B%0Aborder%2Dstyle%3A%20inset%3B%0Aline%2Dheight%3A%2018px%3B%0Apadding%3A%205px%205px%3B%0A%7D%0Atable%2C%20table%20th%2C%20table%20td%20%7B%0Aborder%2Dleft%2Dstyle%3A%20none%3B%0Aborder%2Dright%2Dstyle%3A%20none%3B%0A%7D%0Atable%20thead%2C%20table%20tr%2Eeven%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Ap%20%7B%0Amargin%3A%200%2E5em%200%3B%0A%7D%0Ablockquote%20%7B%0Abackground%2Dcolor%3A%20%23f6f6f6%3B%0Apadding%3A%200%2E25em%200%2E75em%3B%0A%7D%0Ahr%20%7B%0Aborder%2Dstyle%3A%20solid%3B%0Aborder%3A%20none%3B%0Aborder%2Dtop%3A%201px%20solid%20%23777%3B%0Amargin%3A%2028px%200%3B%0A%7D%0Adl%20%7B%0Amargin%2Dleft%3A%200%3B%0A%7D%0Adl%20dd%20%7B%0Amargin%2Dbottom%3A%2013px%3B%0Amargin%2Dleft%3A%2013px%3B%0A%7D%0Adl%20dt%20%7B%0Afont%2Dweight%3A%20bold%3B%0A%7D%0Aul%20%7B%0Amargin%2Dtop%3A%200%3B%0A%7D%0Aul%20li%20%7B%0Alist%2Dstyle%3A%20circle%20outside%3B%0A%7D%0Aul%20ul%20%7B%0Amargin%2Dbottom%3A%200%3B%0A%7D%0Apre%2C%20code%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0Aborder%2Dradius%3A%203px%3B%0Acolor%3A%20%23333%3B%0Awhite%2Dspace%3A%20pre%2Dwrap%3B%20%0A%7D%0Apre%20%7B%0Aborder%2Dradius%3A%203px%3B%0Amargin%3A%205px%200px%2010px%200px%3B%0Apadding%3A%2010px%3B%0A%7D%0Apre%3Anot%28%5Bclass%5D%29%20%7B%0Abackground%2Dcolor%3A%20%23f7f7f7%3B%0A%7D%0Acode%20%7B%0Afont%2Dfamily%3A%20Consolas%2C%20Monaco%2C%20%27Courier%20New%27%2C%20monospace%3B%0Afont%2Dsize%3A%2085%25%3B%0A%7D%0Ap%20%3E%20code%2C%20li%20%3E%20code%20%7B%0Apadding%3A%202px%200px%3B%0A%7D%0Adiv%2Efigure%20%7B%0Atext%2Dalign%3A%20center%3B%0A%7D%0Aimg%20%7B%0Abackground%2Dcolor%3A%20%23FFFFFF%3B%0Apadding%3A%202px%3B%0Aborder%3A%201px%20solid%20%23DDDDDD%3B%0Aborder%2Dradius%3A%203px%3B%0Aborder%3A%201px%20solid%20%23CCCCCC%3B%0Amargin%3A%200%205px%3B%0A%7D%0Ah1%20%7B%0Amargin%2Dtop%3A%200%3B%0Afont%2Dsize%3A%2035px%3B%0Aline%2Dheight%3A%2040px%3B%0A%7D%0Ah2%20%7B%0Aborder%2Dbottom%3A%204px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Apadding%2Dbottom%3A%202px%3B%0Afont%2Dsize%3A%20145%25%3B%0A%7D%0Ah3%20%7B%0Aborder%2Dbottom%3A%202px%20solid%20%23f7f7f7%3B%0Apadding%2Dtop%3A%2010px%3B%0Afont%2Dsize%3A%20120%25%3B%0A%7D%0Ah4%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23f7f7f7%3B%0Amargin%2Dleft%3A%208px%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Ah5%2C%20h6%20%7B%0Aborder%2Dbottom%3A%201px%20solid%20%23ccc%3B%0Afont%2Dsize%3A%20105%25%3B%0A%7D%0Aa%20%7B%0Acolor%3A%20%230033dd%3B%0Atext%2Ddecoration%3A%20none%3B%0A%7D%0Aa%3Ahover%20%7B%0Acolor%3A%20%236666ff%3B%20%7D%0Aa%3Avisited%20%7B%0Acolor%3A%20%23800080%3B%20%7D%0Aa%3Avisited%3Ahover%20%7B%0Acolor%3A%20%23BB00BB%3B%20%7D%0Aa%5Bhref%5E%3D%22http%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0Aa%5Bhref%5E%3D%22https%3A%22%5D%20%7B%0Atext%2Ddecoration%3A%20underline%3B%20%7D%0A%0Acode%20%3E%20span%2Ekw%20%7B%20color%3A%20%23555%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Edt%20%7B%20color%3A%20%23902000%3B%20%7D%20%0Acode%20%3E%20span%2Edv%20%7B%20color%3A%20%2340a070%3B%20%7D%20%0Acode%20%3E%20span%2Ebn%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Efl%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Ech%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Est%20%7B%20color%3A%20%23d14%3B%20%7D%20%0Acode%20%3E%20span%2Eco%20%7B%20color%3A%20%23888888%3B%20font%2Dstyle%3A%20italic%3B%20%7D%20%0Acode%20%3E%20span%2Eot%20%7B%20color%3A%20%23007020%3B%20%7D%20%0Acode%20%3E%20span%2Eal%20%7B%20color%3A%20%23ff0000%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Efu%20%7B%20color%3A%20%23900%3B%20font%2Dweight%3A%20bold%3B%20%7D%20%0Acode%20%3E%20span%2Eer%20%7B%20color%3A%20%23a61717%3B%20background%2Dcolor%3A%20%23e3d2d2%3B%20%7D%20%0A" type="text/css" />
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">TesiproV Vignette</h1>
+<h4 class="author">Konstantin Nille-Hauf, Tania Feiri, Marcus Ricker</h4>
+
+
+
+<p>This document describes how the TesiproV package can be used. The package was developed as part of the “TesiproV” research project (sponsored by BMWi, the German Federal Ministry for Economic Affairs and Energy) and is used for the probabilistic safety assessment of structural components and systems. The source code of the package is freely available as open source.</p>
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>In structural engineering, reliability can be seen as a probabilistic measure of assurance of safe performance. The safety level of a structural component or system is expressed by a reliability index, which is normally accepted as a measure of failure probability. To evaluate such safety level, the theory of structural reliability is applied by means of the following verification of inequality: Ed ≤ Rd. Here Ed is the design value of internal forces at the structural component being analysed and Rd is the corresponding design value of resistance. The quantification of Ed and Rd, and consequently, the quantification of the safety margin of a structural component or system, is possible through the so-called “limit states”. A limit state is a boundary between the desired and undesired performance of a structural component or system. This boundary is often mathematically represented by a “limit state function” (LSF), which is physically modeled by a set of so-called basic random variables Xi.</p>
+<p>This package enables the definition of limit state functions and the respective basic random variables affecting the terms Ed and Rd, and allows for the subsequent quantification of the safety margin by means of various reliability assessment methods.<br />
+The results derived from these methods support a final evaluation of the safety margin of a structural component or system on the basis of normalized values.</p>
+</div>
+<div id="installation" class="section level1">
+<h1>Installation</h1>
+<p>The TesiproV package can be installed from the CRAN network:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">#install.package(&quot;TesiproV&quot;)</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(TesiproV)</span></code></pre></div>
+</div>
+<div id="elements-of-the-model" class="section level1">
+<h1>Elements of the model</h1>
+<div id="basis-variable" class="section level2">
+<h2>Basis variable</h2>
+</div>
+<div id="basics" class="section level2">
+<h2>Basics</h2>
+<p>A basic random variable is a stochastic model of a quantity/value used in limit state functions. The stochastic model is described by a distribution function and the respective parameters. Such parameters influence the characteristics of the function. Usually one parameter shifts the position of the high point and another parameter shifts the width of the high point. It shall be noted that multiparameter distribution functions are also available. The position and the width can be described by the respective moment statistics (i.e., expected value and standard deviation). Normally, transformation equations are available to derive appropriate moment statistics and remaining input parameters for the following distribution types:</p>
+<p><em>Normal distribution (norm) </em>Lognormal distribution (lnorm) <em>Gumbel distribution (gumbel) (Package: EVD) </em>Gamma distribution (gamma) *Weibull distribution (weibull)</p>
+<p>For the characterisation of each distribution function, it is sufficient to specify either the expected value and the standard deviation or the function parameters, since the missing pair of values can be automatically determined. For example, when specifying the expected value and the standard deviation, the covariance is automatically calculated or, on the other way around, a standard deviation is calculated on the basis of the mean value and the covariance. For unknown distribution functions, it is necessary to specify the parameters and, if simulated with Monte-Carlo Simulation with Importance Sampling (MC-IS), also the mean value and standard deviation are needed.</p>
+<div id="prob_basevar" class="section level3">
+<h3>PROB_BASEVAR</h3>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">PROB_BASEVAR</span>(Id, Name, Description, Package, DistributionType, DistributionParameters, Mean, Sd, Cov, X0)</span></code></pre></div>
+<ul>
+<li>ID numeric, for identification purpose</li>
+<li>Name Name of the var, must be the same as in the function input</li>
+<li>Description Description for the output protocol</li>
+<li>Package Packagename, which the distributionfunction derives from (dname,pname,qname,rname; name=DistributionType)</li>
+<li>DistributionType Name of the distributionfunction (without the d,p,q or r)</li>
+<li>Mean first statistical moment</li>
+<li>Sd second statistical moment</li>
+<li>Cov Mean/Cov</li>
+<li>X0 Shift of mean (used for lnorm sometimes)</li>
+</ul>
+<p>Basic variable using the example of concrete compressive strength. As distribution function a logStudentT-distribution adjusted within the package is used. For this distribution a d-,p-,q- and rlt-function is available, therefore Package=“TesiproV”.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>var.f_ck <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;f_ck&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Char. Betondruckfestigkeit&quot;</span>,<span class="at">Package=</span><span class="st">&quot;TesiproV&quot;</span>,                         <span class="at">DistributionType=</span><span class="st">&quot;lt&quot;</span>,<span class="at">DistributionParameters=</span><span class="fu">c</span>(<span class="fl">3.85</span>,<span class="fl">0.09</span>,<span class="dv">3</span>,<span class="dv">10</span>),<span class="at">Mean=</span><span class="fl">47.35</span>,<span class="at">Sd=</span><span class="fl">5.86</span>)</span></code></pre></div>
+</div>
+<div id="param_basevar" class="section level3">
+<h3>PARAM_BASEVAR</h3>
+<p>If a parameter calculation is to be carried out, the variable that is to be parameterized must be firstly defined. The PARAM_BASEVAR object is used for this purpose.</p>
+<p>Three properties can be parameterized for base variables (definition at “ParamType”): * Mean value (Mean) * Standard deviation (Sd) * Distribution type</p>
+<p>The parameter calculation implies the definition of two properties. For example, if the expected value is selected for ParamType=“Mean”, the standard deviation and the distribution type must be defined. Furthermore, parametric calculations can be only performed for distribution types for which an automatic parameter transformation is available (see above).</p>
+<p>Finally, a vector with the values to be iterated is passed into the ParamValues field.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">PARAM_BASEVAR</span>(Id, Name, Description, Package, DistributionType, Sd, ParamType, ParamValues)</span></code></pre></div>
+<p>Parameterized basic variable using the example of effective depth In the range from 200mm to 950mm, a value is generated every 50mm, and afterwards, at intervals of 100mm. According to the Probabilistic Model Code, the nominal values are still increased by 10mm.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>var.d <span class="ot">&lt;-</span> <span class="fu">PARAM_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;d&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Stat. Nutzhöhe&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Sd=</span><span class="dv">10</span>,<span class="at">ParamType=</span><span class="st">&quot;Mean&quot;</span>,<span class="at">ParamValues=</span> <span class="fu">c</span>(<span class="fu">seq</span>(<span class="dv">200</span>,<span class="dv">950</span>,<span class="dv">50</span>),<span class="fu">seq</span>(<span class="dv">1000</span>,<span class="dv">3000</span>,<span class="dv">100</span>))<span class="sc">+</span><span class="dv">10</span>)</span></code></pre></div>
+</div>
+<div id="prob_detvar" class="section level3">
+<h3>PROB_DETVAR</h3>
+<p>If no stochastic model is available for a parameter of the limit state function, or if the parameter is to be used with deterministic values, the value can be either directly specified in the function or a deterministic basic variable can be used. The latter approach is consistent and allows for a more flexible and clear modeling of more complex problems. Internally, a normal distribution with infinitesimal small dispersion is modeled for this variable. This ensures that all solution algorithms remain functional without influencing the results.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>var.gamma_c <span class="ot">&lt;-</span> <span class="fu">PROB_DETVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;gamma_c&quot;</span>,<span class="at">Description=</span><span class="st">&quot;TSB Beton&quot;</span>, <span class="at">Value=</span><span class="fl">1.5</span>)</span></code></pre></div>
+</div>
+<div id="param_detvat" class="section level3">
+<h3>PARAM_DETVAT</h3>
+<p>Frequently, deterministic variables in a parameter calculation also depend on the varying parameter size. In these cases, a parametric deterministic variable can be created. With each iteration of the parametric base variable, the next step of the parametric deterministic variable is also used.</p>
+<p>Here, a normal distribution with infinitesimal standard deviation is also modeled.</p>
+<p>Note: Parametric variables are only considered for the parametric system object (SYS_PARAM) while the normal system object (SYS_PROB) only uses the default value.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>var.V_Ed <span class="ot">&lt;-</span> <span class="fu">PARAM_DETVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;V_Ed&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Einwirkende Querkraft&quot;</span>, <span class="at">ParamValues=</span><span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">3</span>,<span class="dv">4</span>,<span class="fu">seq</span>(<span class="dv">5</span>,<span class="dv">10</span>,<span class="fl">0.5</span>)))</span></code></pre></div>
+</div>
+</div>
+<div id="limit-state-function-lsf" class="section level2">
+<h2>Limit state function (LSF)</h2>
+<p>A limit state function can be formulated either as an objective function (function()) or as an arithmetic expression (expression()). Internally, the arithmetic expression is then converted into an objective function. Therefore, this input option enables better usability. In objective functions, all possible programmatic operations can be carried out (i.e., iterations or loops, conditions, optimizations). Accordingly, for simulation methods, they must be neither necessarily continuous nor differentiable. However, if the Mean Value First Order Second Moment (MVFOSM) method is used, the function must be differentiable at the point of the mean values of the input values (i.e., finite difference method).</p>
+<p>Variables are used as input values for the functions. The naming in the function header (<code>function(E, R)</code>) must fit to the use in the function belly (<code>function(E,R){R-E}</code>). Also, the naming must match the name of the variable itself. Therefore, a <code>list()</code> with all used <code>PROB_BASEVAR()</code> objects is passed to the SYS_LSF() object (note: the objects with their variable names, here var1 and var2, are to be passed, not the variable name itself). In the case of multiple limit state functions being used, the function can be given a name so that it can be better later assigned in printouts. An objective function() can then be defined via the <code>$func()</code> property. Alternatively, <code>$expr()</code> can be used to assign an <code>expression(R-E)</code>. By means of <code>$check()</code> an internal check run is performed, which ensures that all the base variables are complete and suitable.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>var1 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Name=</span><span class="st">&quot;E&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Effect&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="dv">10</span>,<span class="at">Sd=</span><span class="dv">1</span>)</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>var2 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Name=</span><span class="st">&quot;R&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Resistance&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="dv">15</span>,<span class="at">Sd=</span><span class="fl">1.5</span>)</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>lsf<span class="ot">&lt;-</span><span class="fu">SYS_LSF</span>(<span class="at">vars=</span><span class="fu">list</span>(var1,var2),<span class="at">name=</span><span class="st">&quot;LSF XY&quot;</span>)</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>lsf<span class="sc">$</span>func <span class="ot">&lt;-</span> <span class="cf">function</span>(E,R){R<span class="sc">-</span>E}</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a><span class="co"># you can run this check to see if all transformations of the variables worked, all needed data is available and the set of vars fits to the limit state function</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>lsf<span class="sc">$</span><span class="fu">check</span>()</span></code></pre></div>
+</div>
+<div id="algorithms" class="section level2">
+<h2>Algorithms</h2>
+<p>In this package, three different levels (or types) of reliability assessment methods are defined in line with the current European standardization:</p>
+<ul>
+<li>Level 1 (partial safety factors)</li>
+<li>Level 2 (MVFOSM, FORM, SORM)</li>
+<li>Level 3 (MC_CRUDE, MCIS, MCSUS)</li>
+</ul>
+<p>Levels 2 and 3 can be implemented by means of this package (in order to validate Level 1 procedures, if necessary). The accuracy of the calculated failure probabilities - and ultimately, reliability indexes - increases through the levels.</p>
+<p>A solution-oriented approach is always modeled in a so-called <code>PROB_MACHINE()</code>, i.e. an object that stands for a solution algorithm. Over the property <code>fCall</code>, the following reliability assessment methods are available:</p>
+<p>Level 2 Methods: * Mean Value First-Order Second Moment (MVFOSM) * Advanced First-Order Reliability Method (FORM) * Second-Order Reliability Method (SORM)</p>
+<p>Level 3 Methods: * Crude Monte-Carlo Simulation (MC_CRUDE) * Monte-Carlo Simulation with Importance Sampling (MC_IS) * Monte-Carlo Simulation with Subset Sampling (MC_SUS)</p>
+<p>The property <code>$name</code> serves again for better identification in the later output protocol. A list() object in the <code>$options</code> property can then be used to specify special options according to the methods.</p>
+<div id="mvfosm" class="section level3">
+<h3>MVFOSM</h3>
+<p>Options:</p>
+<ul>
+<li>h Genauigkeit partielle Ableitung (Abstand finite Differenzen Methode)</li>
+<li>isExpression FALSE/TRUE MVFOSM kann sowohl mit expression als auch mit funktionalen Ausdrücken umgehen.</li>
+</ul>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>machine <span class="ot">&lt;-</span> <span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;MVFOSM&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;MVFOSM&quot;</span>,<span class="at">options=</span><span class="fu">list</span>(<span class="st">&quot;isExpression&quot;</span><span class="ot">=</span> <span class="cn">FALSE</span>,<span class="st">&quot;h&quot;</span><span class="ot">=</span><span class="fl">0.1</span>))</span></code></pre></div>
+</div>
+<div id="form" class="section level3">
+<h3>FORM</h3>
+<p>Options:</p>
+<ul>
+<li>n_optim max. amount of evaulation runs</li>
+<li>loctol local accuracy of the optimaziation algorithm (if lower then this value, the optim stops)</li>
+<li>OptimType Algorithms one can choose: Rackwitz-Fiessler Algorithmus “rackfies” (quite stable) or Augmented Lagrange Solver (fast but sometimes difficult)</li>
+</ul>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>machine <span class="ot">&lt;-</span> <span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;FORM Rack.-Fieß.&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;FORM&quot;</span>,<span class="at">options=</span><span class="fu">list</span>(<span class="st">&quot;n_optim&quot;</span><span class="ot">=</span><span class="dv">20</span>, <span class="st">&quot;loctol&quot;</span><span class="ot">=</span><span class="fl">0.001</span>, <span class="st">&quot;optim_type&quot;</span><span class="ot">=</span><span class="st">&quot;rackfies&quot;</span>))</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>machine <span class="ot">&lt;-</span> <span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;FORM Lagrange.&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;FORM&quot;</span>,<span class="at">options=</span><span class="fu">list</span>(<span class="st">&quot;optim_type&quot;</span><span class="ot">=</span><span class="st">&quot;auglag&quot;</span>))</span></code></pre></div>
+</div>
+<div id="sorm" class="section level3">
+<h3>SORM</h3>
+<p>Options:</p>
+<ul>
+<li>No settings possible</li>
+</ul>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>machine <span class="ot">&lt;-</span> <span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;SORM&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;SORM&quot;</span>)</span></code></pre></div>
+</div>
+<div id="mc" class="section level3">
+<h3>MC</h3>
+<p>Options:</p>
+<ul>
+<li>cov_user=0.025 abort criterion for cov</li>
+<li>n_max=1e7 abort cirterion for max cycles of evaluation</li>
+<li>use_threads = 64 amount of threads for parallel computing (1 = single core calculation)</li>
+<li>n_batch=100 evaulations each step</li>
+<li>dataRecord=TRUE If true, there is a list() with all the data per calculation step in the result (used for visualization of beta)</li>
+</ul>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>machine <span class="ot">&lt;-</span> <span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;MC CoV 0.05&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;MC_CRUDE&quot;</span>,<span class="at">options=</span><span class="fu">list</span>(<span class="st">&quot;n_max&quot;</span><span class="ot">=</span><span class="fl">1e6</span>, <span class="st">&quot;cov_user&quot;</span><span class="ot">=</span><span class="fl">0.05</span>))</span></code></pre></div>
+</div>
+<div id="mcis" class="section level3">
+<h3>MCIS</h3>
+<p>Options:</p>
+<ul>
+<li>cov_user=0.025 abort criterion for cov</li>
+<li>n_max=1e7 abort cirterion for max cycles of evaluation</li>
+<li>use_threads = 64 amount of threads for parallel computing (1 = single core calculation)</li>
+<li>n_batch=100 evaulations each step</li>
+<li>dataRecord=TRUE If true, there is a list() with all the data per calculation step in the result (used for visualization of beta)</li>
+<li>dps Vector with designpoints. If empty, they will be calculated via a FORM analysis</li>
+</ul>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>machine <span class="ot">&lt;-</span> <span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;MC IS&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;MC_IS&quot;</span>,<span class="at">options=</span><span class="fu">list</span>(<span class="st">&quot;cov_user&quot;</span> <span class="ot">=</span> <span class="fl">0.05</span>, <span class="st">&quot;n_max&quot;</span><span class="ot">=</span><span class="dv">300000</span>))</span></code></pre></div>
+</div>
+<div id="mcsus" class="section level3">
+<h3>MCSUS</h3>
+<p>Options:</p>
+<ul>
+<li>Nsubset=1e5 number of samples in each simulation level</li>
+<li>p0=0.1 level probability or conditional probability</li>
+<li>MaxSubsets=10 maximum number of simulation levels that are used to terminate the simulation procedure to avoid infinite loop when the target domain cannot be reached</li>
+<li>Alpha=0.05 confidence level</li>
+<li>variance=“uniform”</li>
+</ul>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>machine <span class="ot">&lt;-</span> <span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;MC Subset Sampling&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;MC_SubSam&quot;</span>,<span class="at">options=</span><span class="fu">list</span>(<span class="st">&quot;variance&quot;</span><span class="ot">=</span><span class="st">&quot;uniform&quot;</span>))</span></code></pre></div>
+</div>
+</div>
+<div id="system-object" class="section level2">
+<h2>System object</h2>
+<p>The system object combines all the previous objects and organizes the correct calculation of the mathematical model. To this, there are two objects available:</p>
+<ul>
+<li>SYS_PROB Classical calculation of n systems with m algorithms.</li>
+<li>SYS_PARAM Parameterized calculation of one system with m algorithm</li>
+</ul>
+<p>The <code>SYS_LSF</code> object already contains a list of the required basic variables. However, the system object still requires a list of functions to be calculated and the list of algorithms to be used. In addition, the <code>$sys_type</code> property can be used to specify whether the equations have a series <code>$sys_type=&quot;serial&quot;</code> or parallel <code>$sys_type=&quot;parallel&quot;</code> relationship.</p>
+<p>The calculation process is then triggered with <code>$run_machines()</code>. In the console, the user is informed about the current state of the calculation. After completing the calculation, the results can be retrieved via the <code>SYS_PROB</code> object (in the example below <code>ps</code>). For more information see result interpretation.</p>
+<p>You can set a debug.level field of SYS_PROB to 2, to get more information during the calculation, by default that value is zero.</p>
+<div id="simple-andor-system-calculation" class="section level3">
+<h3>Simple and/or system calculation</h3>
+<div class="sourceCode" id="cb15"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>var1 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Name=</span><span class="st">&quot;E&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Effect&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="dv">10</span>,<span class="at">Sd=</span><span class="dv">1</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>var2 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Name=</span><span class="st">&quot;R&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Resistance&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="dv">15</span>,<span class="at">Sd=</span><span class="fl">1.5</span>)</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>lsf<span class="ot">&lt;-</span><span class="fu">SYS_LSF</span>(<span class="at">vars=</span><span class="fu">list</span>(var1,var2),<span class="at">name=</span><span class="st">&quot;LSF XY&quot;</span>)</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>lsf<span class="sc">$</span>func <span class="ot">&lt;-</span> <span class="cf">function</span>(E,R){R<span class="sc">-</span>E}</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a><span class="co"># you can run this check to see if all transformations of the variables worked, all needed data is available and the set of vars fits to the limit state function</span></span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>lsf<span class="sc">$</span><span class="fu">check</span>()</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>machine <span class="ot">&lt;-</span> <span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;FORM Rack.-Fieß.&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;FORM&quot;</span>,<span class="at">options=</span><span class="fu">list</span>(<span class="st">&quot;n_optim&quot;</span><span class="ot">=</span><span class="dv">20</span>, <span class="st">&quot;loctol&quot;</span><span class="ot">=</span><span class="fl">0.001</span>, <span class="st">&quot;optim_type&quot;</span><span class="ot">=</span><span class="st">&quot;rackfies&quot;</span>))</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">SYS_PROB</span>(</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">sys_input=</span><span class="fu">list</span>(lsf),</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">probMachines =</span> <span class="fu">list</span>(machine),</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">debug.level=</span><span class="dv">0</span></span>
+<span id="cb15-17"><a href="#cb15-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-18"><a href="#cb15-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-19"><a href="#cb15-19" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">runMachines</span>()</span>
+<span id="cb15-20"><a href="#cb15-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-21"><a href="#cb15-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-22"><a href="#cb15-22" aria-hidden="true" tabindex="-1"></a><span class="co"># Systemberechnungn (System aus zwei gleichen LSF´s)</span></span>
+<span id="cb15-23"><a href="#cb15-23" aria-hidden="true" tabindex="-1"></a>ps2 <span class="ot">&lt;-</span> <span class="fu">SYS_PROB</span>(</span>
+<span id="cb15-24"><a href="#cb15-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">sys_input=</span><span class="fu">list</span>(lsf,lsf),</span>
+<span id="cb15-25"><a href="#cb15-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">probMachines =</span> <span class="fu">list</span>(machine),</span>
+<span id="cb15-26"><a href="#cb15-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">sys_type=</span><span class="st">&quot;serial&quot;</span></span>
+<span id="cb15-27"><a href="#cb15-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb15-28"><a href="#cb15-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-29"><a href="#cb15-29" aria-hidden="true" tabindex="-1"></a>ps2<span class="sc">$</span><span class="fu">runMachines</span>()</span>
+<span id="cb15-30"><a href="#cb15-30" aria-hidden="true" tabindex="-1"></a>ps2<span class="sc">$</span><span class="fu">calculateSystemProbability</span>()</span>
+<span id="cb15-31"><a href="#cb15-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-32"><a href="#cb15-32" aria-hidden="true" tabindex="-1"></a><span class="co">#ps2$calculateSystemProbability(&quot;MCSUS&quot;)</span></span>
+<span id="cb15-33"><a href="#cb15-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-34"><a href="#cb15-34" aria-hidden="true" tabindex="-1"></a><span class="co">#params &lt;- list(&quot;cov_user&quot;=0.10)</span></span>
+<span id="cb15-35"><a href="#cb15-35" aria-hidden="true" tabindex="-1"></a><span class="co">#ps2$calculateSystemProbability(&quot;MCC&quot;,params)</span></span>
+<span id="cb15-36"><a href="#cb15-36" aria-hidden="true" tabindex="-1"></a><span class="co">#ps2$calculateSystemProbability(&quot;MCIS&quot;,params)</span></span></code></pre></div>
+</div>
+<div id="parametric-calculation" class="section level3">
+<h3>Parametric calculation</h3>
+<p>A parametric calculation hardly differs in the application from the regular (“normal”) calculation. The prerequisite is that a parametric variable (including possibly associated parametric deterministic variables) was used in the modeling of the limit state function. In addition, the system object is called ‘SYS_PARAM’ instead of ‘SYS_PROB’.</p>
+<div class="sourceCode" id="cb16"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>var1 <span class="ot">&lt;-</span> <span class="fu">PARAM_BASEVAR</span>(<span class="at">Name=</span><span class="st">&quot;E&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Effect&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;Norm&quot;</span>,<span class="at">Sd=</span><span class="dv">1</span>,<span class="at">ParamType=</span><span class="st">&quot;Mean&quot;</span>,<span class="at">Values=</span><span class="fu">c</span>(<span class="dv">9</span>,<span class="dv">11</span>,<span class="fl">0.1</span>))</span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a><span class="co">#[...]</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">SYS_PARAM</span>(</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">sys_input=</span><span class="fu">list</span>(lsf),</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">probMachines =</span> <span class="fu">list</span>(form)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">runMachines</span>()</span></code></pre></div>
+</div>
+</div>
+<div id="interpretation-of-results-and-post-processing" class="section level2">
+<h2>Interpretation of results and post processing</h2>
+<p>After the calculation is completed, the results are available in the <code>PROB_SYS</code> object. For regular calculations (<code>PROB_SYS</code>) the following results can be retrieved:</p>
+<ul>
+<li>Simple calculation
+<ul>
+<li>beta_single</li>
+<li>res_single</li>
+</ul></li>
+<li>System calculations
+<ul>
+<li>beta_sys</li>
+<li>res_sys</li>
+</ul></li>
+</ul>
+<p>Here beta_* is the beta values summarized while res_* is the full result output via list(). The list <code>$res_*</code> is structured as follows <code>ps$res_*[[lsf]][[machine]]$value</code>.</p>
+<p>For parametric calculation stands: * beta_params * res_params</p>
+<p>where the first list level of <code>$res_params</code> corresponds to the parameter iterations. The data can be then processed individually.</p>
+<p>In addition, the results can be printed to a file using the command <code>$printResults(filename)</code>, where filename corresponds to the file name and the file is stored in the current working directory (see getwd() or setwd()).</p>
+<p>The project can also be stored differently to allow later postprocessing in other files. For this, the command <code>$saveProject(level,filename)</code> is used. The following stages describe a different level of detail:</p>
+<ul>
+<li><ol style="list-style-type: decimal">
+<li>Only the beta values are stored.</li>
+</ol></li>
+<li><ol start="2" style="list-style-type: decimal">
+<li>The <code>$res_*</code> object is saved.</li>
+</ol></li>
+<li><ol start="3" style="list-style-type: decimal">
+<li>The entire <code>ps</code> object is stored.</li>
+</ol></li>
+<li><ol start="4" style="list-style-type: decimal">
+<li>An image of the current working memory is created, which can be reloaded later.</li>
+</ol></li>
+</ul>
+<p>Stages 1 to 3 can be then read back into working memory using the <code>readRDS(filename)</code> command, while Stage 4 is reloaded using <code>load(filename)</code>.</p>
+<div class="sourceCode" id="cb17"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">SYS_PARAM</span>(</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">sys_input=</span><span class="fu">list</span>(lsf),</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">probMachines =</span> <span class="fu">list</span>(form)</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">runMachines</span>()</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>local_beta <span class="ot">&lt;-</span> ps<span class="sc">$</span>beta</span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>local_runtime <span class="ot">&lt;-</span> ps<span class="sc">$</span>res_single[[<span class="dv">1</span>]][[<span class="dv">1</span>]]<span class="sc">$</span>runtime</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a><span class="co">#define path with setwd(&quot;...&quot;)</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">printResults</span>(<span class="st">&quot;result_file&quot;</span>) <span class="co">#Prints a report file in .txt format with all informations about the calculation</span></span>
+<span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">saveProject</span>(<span class="dv">4</span>,<span class="st">&quot;project_file&quot;</span>) <span class="co">#stores the project in a file</span></span></code></pre></div>
+</div>
+</div>
+<div id="examples" class="section level1">
+<h1>Examples</h1>
+<div id="two-normal-distributed-variables" class="section level2">
+<h2>Two normal distributed variables</h2>
+<p>A limit state equation 20-(x1-x2)^2-8*(x1+x2-4)^3 is to be investigated, where x1 and x2 are normally distributed around the expected value of 0.25 and the standard deviation of 1. The example is taken from the documentation of the UQLab software.</p>
+<p>Firstly, two basic variables are created and assigned to the R variables Var1 and Var2. The first variable is named as “X1” and the second as “X2”. These names are then reused in the definition of the limit state function (i.e., to compare the input variables of the function). In addition, both variables receive the indicator “norm” as distribution type (DistributionType) and the mean value defined above or the corresponding standard deviation.</p>
+<p>Subsequently, a limit state function object (SYS_LSF) is assigned to the R variable lsf. A list of variables (Var1,Var2) is passed to the object and a name is assigned for later identification. In addition, the corresponding limit state equation is defined via the object property “func”.</p>
+<p>The R variable “FORM” is assigned a solution method of the Level 2 (FORM) without any additional setting parameters.</p>
+<p>Finally, the modules are merged in the SYS_PROB object and the R variable “ps” and the calculation is started by means of the $runMachines() method. In the following result log the intermediate results of the individual iteration steps are shown. Using the “ps” object, different results (here, for example, the beta value) can be retrieved after a successful calculation.</p>
+<div class="sourceCode" id="cb18"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>Var1 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;X1&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="fl">0.25</span>,<span class="at">Sd=</span><span class="dv">1</span>) <span class="co">#kN/m²</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>Var2 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">2</span>,<span class="at">Name=</span><span class="st">&quot;X2&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="fl">0.25</span>,<span class="at">Sd=</span><span class="dv">1</span>) <span class="co">#m</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>lsf<span class="ot">&lt;-</span><span class="fu">SYS_LSF</span>(<span class="at">vars=</span><span class="fu">list</span>(Var1,Var2),<span class="at">name=</span><span class="st">&quot;UQLab 2d_hat&quot;</span>)</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>lsf<span class="sc">$</span>func <span class="ot">&lt;-</span> <span class="cf">function</span>(X1,X2){</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="dv">20</span><span class="sc">-</span>(X1<span class="sc">-</span>X2)<span class="sc">^</span><span class="dv">2-8</span><span class="sc">*</span>(X1<span class="sc">+</span>X2<span class="dv">-4</span>)<span class="sc">^</span><span class="dv">3</span>)</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>form<span class="ot">&lt;-</span><span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;FORM Rack.-Fieß.&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;FORM&quot;</span>)</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">SYS_PROB</span>(</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">sys_input=</span><span class="fu">list</span>(lsf),</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">probMachines =</span> <span class="fu">list</span>(form)</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">runMachines</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb19"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span>beta_single</span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  UQLab 2d_hat</span></span>
+<span id="cb19-3"><a href="#cb19-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; FORM Rack.-Fieß.     3.434565</span></span></code></pre></div>
+</div>
+<div id="non-normally-distributed-basic-variable" class="section level2">
+<h2>Non-normally distributed basic variable</h2>
+<p>To demonstrate non-normally distributed basic variables, an example from Nowak &amp; Collins (Example 5.11, Page 127/128) is calculated. Here normally distributed, lognormally distributed as well as gumbel distributed variables are used. While “norm” and “lnorm” are still contained in the standard scope of R (package “stats”) the Gumbel distribution is to be considered on the basis of the EVD-package (EVD := extreme value distributions).</p>
+<div class="sourceCode" id="cb20"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(<span class="st">&quot;evd&quot;</span>)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>X1 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;Z&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="dv">100</span>,<span class="at">Cov=</span><span class="fl">0.04</span>) <span class="co">#kN/m²</span></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>X2 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">2</span>,<span class="at">Name=</span><span class="st">&quot;Fy&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;lnorm&quot;</span>,<span class="at">Mean=</span><span class="dv">40</span>,<span class="at">Cov=</span><span class="fl">0.1</span>) <span class="co">#m</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>X3 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">2</span>,<span class="at">Name=</span><span class="st">&quot;M&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;gumbel&quot;</span>,<span class="at">Package=</span><span class="st">&quot;evd&quot;</span>,<span class="at">Mean=</span><span class="dv">2000</span>,<span class="at">Cov=</span><span class="fl">0.1</span>) <span class="co">#m</span></span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>lsf<span class="ot">&lt;-</span><span class="fu">SYS_LSF</span>(<span class="at">vars=</span><span class="fu">list</span>(X1,X2,X3),<span class="at">name=</span><span class="st">&quot;Nowak &amp; Collins Exp5.11_1&quot;</span>)</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>lsf<span class="sc">$</span>func <span class="ot">&lt;-</span> <span class="cf">function</span>(M,Fy,Z){</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>  K <span class="ot">&lt;-</span> Z<span class="sc">*</span>Fy</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fl">0.9</span><span class="sc">*</span>K<span class="sc">-</span>M)</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>form<span class="ot">&lt;-</span><span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;FORM Rack.-Fieß.&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;FORM&quot;</span>)</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">SYS_PROB</span>(</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">sys_input=</span><span class="fu">list</span>(lsf),</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">probMachines =</span> <span class="fu">list</span>(form)</span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">runMachines</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb21"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span>beta_single</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  Nowak &amp; Collins Exp5.11_1</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; FORM Rack.-Fieß.                  5.388625</span></span></code></pre></div>
+</div>
+<div id="multiple-limit-state-functions-in-one-system" class="section level2">
+<h2>Multiple limit state functions in one system</h2>
+<p>Basically, the “SYS_PROB” object is able to calculate several LSF’s by means of Level 2 as well as Level 3 methods. This can be used if a system consists of several limit state functions and if the system safety is to be determined by means of so-called SimpleBounds. In this case, the failure probability must be determined for each individual limit state equation and then calculated to a system failure probability. On the other hand, the development of a limit state function often poses several variants in equations or variables, so that by the simultaneous calculation of several equations satisfactory comparability is achieved and a high usability remains granted.</p>
+<p>If, however, the system failure probability is not to be estimated by means of the SimpleBounds, but is to be approximated by simulation methods (e.g., MC-Crude), a system must also be constructed according to the following scheme.</p>
+<p>In this example, the above examples are first determined individually as a system using a FORM calculation and then the system failure probability is determined using different methods.</p>
+<div class="sourceCode" id="cb22"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>Var1 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;X1&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="fl">0.25</span>,<span class="at">Sd=</span><span class="dv">1</span>) <span class="co">#kN/m²</span></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a>Var2 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">2</span>,<span class="at">Name=</span><span class="st">&quot;X2&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="fl">0.25</span>,<span class="at">Sd=</span><span class="dv">1</span>) <span class="co">#m</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>lsf1<span class="ot">&lt;-</span><span class="fu">SYS_LSF</span>(<span class="at">vars=</span><span class="fu">list</span>(Var1,Var2),<span class="at">name=</span><span class="st">&quot;UQLab 2d_hat&quot;</span>)</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>lsf1<span class="sc">$</span>func <span class="ot">&lt;-</span> <span class="cf">function</span>(X1,X2){</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="dv">20</span><span class="sc">-</span>(X1<span class="sc">-</span>X2)<span class="sc">^</span><span class="dv">2-8</span><span class="sc">*</span>(X1<span class="sc">+</span>X2<span class="dv">-4</span>)<span class="sc">^</span><span class="dv">3</span>)</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>X1 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;Z&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="dv">100</span>,<span class="at">Cov=</span><span class="fl">0.04</span>) <span class="co">#kN/m²</span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>X2 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">2</span>,<span class="at">Name=</span><span class="st">&quot;Fy&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;lnorm&quot;</span>,<span class="at">Mean=</span><span class="dv">40</span>,<span class="at">Cov=</span><span class="fl">0.1</span>) <span class="co">#m</span></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>X3 <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">2</span>,<span class="at">Name=</span><span class="st">&quot;M&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;gumbel&quot;</span>,<span class="at">Package=</span><span class="st">&quot;evd&quot;</span>,<span class="at">Mean=</span><span class="dv">2000</span>,<span class="at">Cov=</span><span class="fl">0.1</span>) <span class="co">#m</span></span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>lsf2<span class="ot">&lt;-</span><span class="fu">SYS_LSF</span>(<span class="at">vars=</span><span class="fu">list</span>(X1,X2,X3),<span class="at">name=</span><span class="st">&quot;Nowak &amp; Collins Exp5.11_1&quot;</span>)</span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>lsf2<span class="sc">$</span>func <span class="ot">&lt;-</span> <span class="cf">function</span>(M,Fy,Z){</span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>  K <span class="ot">&lt;-</span> Z<span class="sc">*</span>Fy</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(<span class="fl">0.75</span><span class="sc">*</span>K<span class="sc">-</span>M)</span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a>form<span class="ot">&lt;-</span><span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;FORM Rack.-Fieß.&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;FORM&quot;</span>)</span>
+<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">SYS_PROB</span>(</span>
+<span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">sys_input =</span><span class="fu">list</span>(lsf1,lsf2),</span>
+<span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a>  <span class="at">sys_type =</span> <span class="st">&quot;serial&quot;</span>,</span>
+<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a>  <span class="at">probMachines =</span> <span class="fu">list</span>(form)</span>
+<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-28"><a href="#cb22-28" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">runMachines</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb23"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span>beta_single</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;                  UQLab 2d_hat Nowak &amp; Collins Exp5.11_1</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; FORM Rack.-Fieß.     3.434565                  3.710911</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">calculateSystemProbability</span>()</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span>beta_sys</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt;            [,1]</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; SB min 3.352809</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a><span class="co">#&gt; SB max 3.434565</span></span></code></pre></div>
+<p>The following lines are not executed because the calculation time is several minutes depending on the machine. Results in the range of the above interval are to be expected. The results can be retrieved after the calculation using “$beta_sys”.</p>
+<div class="sourceCode" id="cb24"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="st">&quot;cov_user&quot;</span><span class="ot">=</span><span class="fl">0.05</span>,<span class="st">&quot;n_max&quot;</span><span class="ot">=</span><span class="dv">50000</span>)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">calculateSystemProbability</span>(<span class="st">&quot;MC&quot;</span>,params)</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>params <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="st">&quot;cov_user&quot;</span><span class="ot">=</span><span class="fl">0.05</span>,<span class="st">&quot;n_max&quot;</span><span class="ot">=</span><span class="dv">50000</span>)</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">calculateSystemProbability</span>(<span class="st">&quot;MCIS&quot;</span>,params)</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">calculateSystemProbability</span>(<span class="st">&quot;MCSUS&quot;</span>,params)</span></code></pre></div>
+</div>
+<div id="parameterstudy" class="section level2">
+<h2>Parameterstudy</h2>
+<ul>
+<li>Punching according to DIN EN 1992-1 + NAD</li>
+<li>Effective depth (var.d) is parameterized (cf. vector at “ParamValues”)</li>
+<li>Additional parametric deterministic variable “var.V_Ed” which depends on &quot;pre.d</li>
+<li>Calculation by FORM and postprocessing see below.</li>
+</ul>
+<div class="sourceCode" id="cb25"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>var.d <span class="ot">&lt;-</span> <span class="fu">PARAM_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;d&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Stat. Nutzhöhe&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Sd=</span><span class="dv">10</span>,<span class="at">ParamType=</span><span class="st">&quot;Mean&quot;</span>,<span class="at">ParamValues=</span> <span class="fu">c</span>(<span class="fu">seq</span>(<span class="dv">200</span>,<span class="dv">800</span>,<span class="dv">50</span>),<span class="fu">seq</span>(<span class="dv">1000</span>,<span class="dv">3000</span>,<span class="dv">100</span>))<span class="sc">+</span><span class="dv">10</span>)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>pre.d <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fu">seq</span>(<span class="dv">200</span>,<span class="dv">800</span>,<span class="dv">50</span>),<span class="fu">seq</span>(<span class="dv">1000</span>,<span class="dv">3000</span>,<span class="dv">100</span>))</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>var.f_ck <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;f_ck&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Char.Betondruckfestigkeit&quot;</span>,<span class="at">Package=</span><span class="st">&quot;TesiproV&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;lt&quot;</span>,<span class="at">DistributionParameters=</span><span class="fu">c</span>(<span class="fl">3.85</span>,<span class="fl">0.09</span>,<span class="dv">3</span>,<span class="dv">10</span>),<span class="at">Mean=</span><span class="fl">47.35</span>,<span class="at">Sd=</span><span class="fl">5.86</span>)</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>pre.f_ck <span class="ot">&lt;-</span> <span class="dv">35</span></span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>var.f_ywk <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;f_ywk&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Zugfestigkeit Bügelbewehrung&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="dv">560</span>,<span class="at">Cov=</span><span class="fl">0.02</span>)</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>pre.f_ywk <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>var.f_yk <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;f_yk&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Zugfestigkeit Längsbewehrung&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="dv">560</span>,<span class="at">Sd=</span><span class="dv">30</span>)</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>pre.f_yk <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>var.rho_l <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;rho_l&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Biegebewehrungsgrad&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="fl">0.01</span>,<span class="at">Cov=</span><span class="fl">0.02</span>)</span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>pre.rho_l <span class="ot">&lt;-</span> var.rho_l<span class="sc">$</span>Mean</span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>var.c_D <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;c_D&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Stützendurchmesser&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;norm&quot;</span>,<span class="at">Mean=</span><span class="dv">500</span><span class="fl">+0.003</span><span class="sc">*</span><span class="dv">500</span>,<span class="at">Sd=</span><span class="dv">4</span><span class="fl">+0.006</span><span class="sc">*</span><span class="dv">500</span>)</span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>pre.c_D <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>var.theta_c <span class="ot">&lt;-</span> <span class="fu">PROB_BASEVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;theta_c&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Modellunsicherheit c nach DIBT&quot;</span>,<span class="at">DistributionType=</span><span class="st">&quot;lnorm&quot;</span>, <span class="at">Mean=</span><span class="fl">1.0644</span>,<span class="at">Cov=</span><span class="fl">0.1679</span>)</span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>var.gamma_c <span class="ot">&lt;-</span> <span class="fu">PROB_DETVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;gamma_c&quot;</span>,<span class="at">Description=</span><span class="st">&quot;TSB Beton&quot;</span>, <span class="at">Value=</span><span class="fl">1.5</span>)</span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>var.gamma_s <span class="ot">&lt;-</span> <span class="fu">PROB_DETVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;gamma_s&quot;</span>,<span class="at">Description=</span><span class="st">&quot;TSB Stahl&quot;</span>, <span class="at">Value=</span><span class="fl">1.15</span>)</span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>var.alpha_cc <span class="ot">&lt;-</span> <span class="fu">PROB_DETVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;alpha_cc&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Langzeitfaktor AlphaCC&quot;</span>, <span class="at">Value=</span><span class="fl">0.85</span>)</span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>V_Ed <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="fl">0.6412447</span>,<span class="fl">0.8760515</span>,<span class="fl">1.1424185</span>,<span class="fl">1.4399554</span>,<span class="fl">1.7554079</span>,<span class="fl">2.0188587</span>,<span class="fl">2.3003489</span>,<span class="fl">2.5997038</span>,<span class="fl">2.9167825</span>,<span class="fl">3.2514671</span>,<span class="fl">3.6036567</span>,<span class="fl">3.9732630</span>,</span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>          <span class="fl">4.3602076</span>,<span class="fl">6.0800504</span>,<span class="fl">7.0424326</span>,<span class="fl">8.0726216</span>,<span class="fl">9.1702994</span>,<span class="fl">10.3351829</span>,<span class="fl">11.5670173</span>,<span class="fl">12.8655715</span>,<span class="fl">14.2306347</span>,<span class="fl">15.6620132</span>,<span class="fl">17.1595283</span>,<span class="fl">18.7230145</span>,</span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a>          <span class="fl">20.3523175</span>,<span class="fl">22.0472935</span>,<span class="fl">23.8078076</span>,<span class="fl">25.6337332</span>,<span class="fl">27.5249511</span>,<span class="fl">29.4813487</span>,<span class="fl">31.5028193</span>,<span class="fl">33.5892621</span>,<span class="fl">35.7405811</span>,<span class="fl">37.9566849</span>)</span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>var.V_Ed <span class="ot">&lt;-</span> <span class="fu">PARAM_DETVAR</span>(<span class="at">Id=</span><span class="dv">1</span>,<span class="at">Name=</span><span class="st">&quot;V_Ed&quot;</span>,<span class="at">Description=</span><span class="st">&quot;Einwirkende Querkraft&quot;</span>, <span class="at">ParamValues=</span><span class="fu">unlist</span>(V_Ed))</span>
+<span id="cb25-29"><a href="#cb25-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-30"><a href="#cb25-30" aria-hidden="true" tabindex="-1"></a>lsf1 <span class="ot">&lt;-</span><span class="fu">SYS_LSF</span>(<span class="at">vars=</span><span class="fu">list</span>(var.d,var.f_ck,var.f_yk,var.f_ywk,var.rho_l,var.c_D,</span>
+<span id="cb25-31"><a href="#cb25-31" aria-hidden="true" tabindex="-1"></a>                         var.theta_c,var.V_Ed,var.gamma_c,var.gamma_s,var.alpha_cc),</span>
+<span id="cb25-32"><a href="#cb25-32" aria-hidden="true" tabindex="-1"></a>               <span class="at">name=</span><span class="st">&quot;Durchstanzwiderstand ohne Bewehrung&quot;</span>)</span>
+<span id="cb25-33"><a href="#cb25-33" aria-hidden="true" tabindex="-1"></a>lsf1<span class="sc">$</span>func <span class="ot">&lt;-</span> <span class="cf">function</span>(d, f_ck,f_yk,f_ywk, rho_l, c_D, theta_c, V_Ed, gamma_c, gamma_s, alpha_cc){</span>
+<span id="cb25-34"><a href="#cb25-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-35"><a href="#cb25-35" aria-hidden="true" tabindex="-1"></a>  f_cd <span class="ot">&lt;-</span> f_ck<span class="sc">*</span>alpha_cc<span class="sc">/</span>gamma_c</span>
+<span id="cb25-36"><a href="#cb25-36" aria-hidden="true" tabindex="-1"></a>  f_yd <span class="ot">&lt;-</span> f_yk<span class="sc">/</span>gamma_s</span>
+<span id="cb25-37"><a href="#cb25-37" aria-hidden="true" tabindex="-1"></a>  f_ywd <span class="ot">&lt;-</span> f_ywk<span class="sc">/</span>gamma_s</span>
+<span id="cb25-38"><a href="#cb25-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-39"><a href="#cb25-39" aria-hidden="true" tabindex="-1"></a>  u_0 <span class="ot">&lt;-</span> c_D<span class="sc">*</span>pi</span>
+<span id="cb25-40"><a href="#cb25-40" aria-hidden="true" tabindex="-1"></a>  u_1 <span class="ot">&lt;-</span> (c_D<span class="sc">/</span><span class="dv">2</span><span class="sc">+</span><span class="dv">2</span><span class="sc">*</span>d)<span class="sc">*</span><span class="dv">2</span><span class="sc">*</span>pi</span>
+<span id="cb25-41"><a href="#cb25-41" aria-hidden="true" tabindex="-1"></a>  u_0<span class="fl">.5</span> <span class="ot">&lt;-</span> (c_D<span class="sc">/</span><span class="dv">2</span><span class="fl">+0.5</span><span class="sc">*</span>d)<span class="sc">*</span><span class="dv">2</span><span class="sc">*</span>pi</span>
+<span id="cb25-42"><a href="#cb25-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-43"><a href="#cb25-43" aria-hidden="true" tabindex="-1"></a>  k <span class="ot">&lt;-</span> <span class="fu">min</span>(<span class="dv">1</span><span class="sc">+</span><span class="fu">sqrt</span>(<span class="dv">200</span><span class="sc">/</span>d),<span class="dv">2</span>)</span>
+<span id="cb25-44"><a href="#cb25-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-45"><a href="#cb25-45" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span>((u_0<span class="sc">/</span>d)<span class="sc">&lt;</span><span class="dv">4</span>){</span>
+<span id="cb25-46"><a href="#cb25-46" aria-hidden="true" tabindex="-1"></a>    C_Rd_c <span class="ot">&lt;-</span> <span class="fl">0.18</span> <span class="sc">*</span> (<span class="fl">0.1</span><span class="sc">*</span>u_0<span class="sc">/</span>d <span class="sc">+</span> <span class="fl">0.6</span>)</span>
+<span id="cb25-47"><a href="#cb25-47" aria-hidden="true" tabindex="-1"></a>  }<span class="cf">else</span>{</span>
+<span id="cb25-48"><a href="#cb25-48" aria-hidden="true" tabindex="-1"></a>    C_Rd_c <span class="ot">&lt;-</span> <span class="fl">0.18</span></span>
+<span id="cb25-49"><a href="#cb25-49" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb25-50"><a href="#cb25-50" aria-hidden="true" tabindex="-1"></a>  rho_l <span class="ot">&lt;-</span> <span class="fu">min</span>(rho_l,<span class="fl">0.5</span><span class="sc">*</span>f_cd<span class="sc">/</span>f_yd,<span class="fl">0.02</span>)</span>
+<span id="cb25-51"><a href="#cb25-51" aria-hidden="true" tabindex="-1"></a>  C_Rd_c1 <span class="ot">&lt;-</span> C_Rd_c <span class="sc">*</span> k <span class="sc">*</span> (<span class="dv">100</span><span class="sc">*</span>rho_l<span class="sc">*</span>f_ck)<span class="sc">^</span>(<span class="dv">1</span><span class="sc">/</span><span class="dv">3</span>)</span>
+<span id="cb25-52"><a href="#cb25-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-53"><a href="#cb25-53" aria-hidden="true" tabindex="-1"></a>  v_Rd_c <span class="ot">&lt;-</span> C_Rd_c1</span>
+<span id="cb25-54"><a href="#cb25-54" aria-hidden="true" tabindex="-1"></a>  V_Rd_c <span class="ot">&lt;-</span> v_Rd_c<span class="sc">*</span>d<span class="sc">*</span>u_1<span class="sc">*</span><span class="fl">1e-6</span><span class="sc">*</span>theta_c</span>
+<span id="cb25-55"><a href="#cb25-55" aria-hidden="true" tabindex="-1"></a>  <span class="fu">return</span>(V_Rd_c<span class="sc">-</span>V_Ed)</span>
+<span id="cb25-56"><a href="#cb25-56" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb25-57"><a href="#cb25-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-58"><a href="#cb25-58" aria-hidden="true" tabindex="-1"></a>form <span class="ot">&lt;-</span> <span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;FORM RF.&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;FORM&quot;</span>,<span class="at">options=</span><span class="fu">list</span>(<span class="st">&quot;n_optim&quot;</span><span class="ot">=</span><span class="dv">20</span>, <span class="st">&quot;loctol&quot;</span><span class="ot">=</span><span class="fl">0.0001</span>, <span class="st">&quot;optim_type&quot;</span><span class="ot">=</span><span class="st">&quot;rackfies&quot;</span>))</span>
+<span id="cb25-59"><a href="#cb25-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-60"><a href="#cb25-60" aria-hidden="true" tabindex="-1"></a>ps <span class="ot">&lt;-</span> <span class="fu">SYS_PARAM</span>(</span>
+<span id="cb25-61"><a href="#cb25-61" aria-hidden="true" tabindex="-1"></a>  <span class="at">sys_input=</span><span class="fu">list</span>(lsf1),</span>
+<span id="cb25-62"><a href="#cb25-62" aria-hidden="true" tabindex="-1"></a>  <span class="at">probMachines =</span> <span class="fu">list</span>(form)</span>
+<span id="cb25-63"><a href="#cb25-63" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb25-64"><a href="#cb25-64" aria-hidden="true" tabindex="-1"></a>ps<span class="sc">$</span><span class="fu">runMachines</span>()</span></code></pre></div>
+<div class="sourceCode" id="cb26"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>d <span class="ot">&lt;-</span> pre.d</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>betas <span class="ot">&lt;-</span> <span class="fu">unlist</span>(<span class="fu">unname</span>(ps<span class="sc">$</span>beta_params))</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="at">x=</span>d,<span class="at">y=</span>betas,<span class="at">type=</span><span class="st">&quot;l&quot;</span>)</span></code></pre></div>
+<p><img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAASAAAAEgCAMAAAAjXV6yAAAAVFBMVEUAAAAAADoAAGYAOjoAOpAAZrY6AAA6ADo6AGY6Ojo6OpA6kNtmAABmADpmtv+QOgCQkGaQ2/+2ZgC2///bkDrb2//b////tmb/25D//7b//9v////FLQZLAAAACXBIWXMAAA7DAAAOwwHHb6hkAAAHFUlEQVR4nO2di3bbKBRFaSdOOyO3blRNZFv//58F4VcTiyMuXIHss9dKk2UD19rlKSHLDCSIKf0BaoeCABQEoCAABQEoCEBBAAoCUBCAggAUBKAgAAUBKAhAQQAKAlAQgIIAFASgIAAFASgIQEEACgJQEICCABQEoCAABQEoCEBBAAoCUBCAggAUBKAgAAUBKAhAQQAKAlAQgIIAFASgIAAFASgIQEEACgJQEICCABQEoCAABQEoCEBBAAoCUBCAggAUBKAgAAUBKAhAQQAKAlAQgIIAFASgIAAFASgIQEEACgJQEICCABQEoCAABQEyCzKroZSgvMXpQUEACgIUFxTTzEtQXlD+srNCQYAqBNVsqA5BFRsqLciolJ4RCgJQEGBhQZ+WOB9/V0clNYiCpoqjIFAcBYHiKAgUR0GgOPPxhdooLMh8fKE6KAhAQQAKAlAQoBpBtRqiIAAFASgIQEGAsoLM55dqo+wZRQoCxZk7r1UGBQFUBe1ff4aLM/derAsVQYftta/5+jtQ3LMKGnrTuF+wBiUFWQalJnbYvrwLBFVoSK0Par+8CQTVZ0gg6LBths4YV0VCdKZ5UkHty/v+dTO0G5Bj//pPvKDqDMULOmx/2k7Y/kyMT1eOO/Osglorp4OCZHErMyRpYhs3Rh22qInZemZsTx0dty5Dok7aHvdxF/TTGttF//c+VrfouFUZ0hnmbT8+jvN2LJsY7ILF1WRIaalh683+mxM01ZWHi6vIkKyJhVZZg58p2UHs/0FYg1YuyLafbhOaJQ/XEc6ruill5l1G9RiSDPPN0Nt6MVU3Rjo/fPWTEyEUtxpDsnnQ/vvv8Ucv7ooFHXfNcPjxpiyoGkOCPsh1MG0TbmJ/JRbFXbEgt0y1I1nSSmNG3EoMFb5wuGBEIYJO+odfX+HVfGrcKgzJBeHVvHCxGplImVhB7XWq1wRSJy1WBZ9OD3kNCpG4WI1Opkidi1VZWBUkguwY//LeBlpY8mJVklAJwQftv7x17oxiwNDkYjU+bmlDsqWGqxfBUSx5sSpLqoBsseoE6c+DJGmzI69B7ay1WHLcMXFBReI+qJu+5hUqJfpreT5GXxrhKBaYI2eOK0yfjYoXq6rx88ctLaiUIXETS+qiRYdbxpCkkx675y6tE5IcbZHBTDbMOxYc5hNzJSGbKDqWmyjeZltckaQG+W0L807aJ8fNllE73m0f5NpYv3wflJpTN5xPOGMHdOa4d7Iuqmg986BcmbVi1SRoSUPrFLRgM1upoOUUrVbQUopWLGgZRQsLkp4wmy4vTzmBCNkTLlyctqLVC9JWpCSoNWZz3NmWlOGyD0ZTkY6g8aqH2WS5cDgLPUMqgsZTRn2OzQuzUatEepsX/Pmi1M0L81FS9Cg1aCxTw5FyH3Q+P5tW3HzyK3qIUeyvgjM7eoB50Oeyczp6REFDTkdKgrpz6xLvtE8mkyKlTtqOYP6m1nKCMlUjvWHe/hvYh7bU6a5kR3oTxcHfeldW0DCkPjxIsQYN7raX8oLGaHJLSn3QScunm4JynzCLQRZTbRTzjey4q6IGnYMK/mMedB4UCBxZf59O0Cn8bEvaguropO8zy9KT1qAryNHTCxpA301Bnsnmpiko+ZbMpbk3wumdMMtxS2YRAt/HG8wWEyPbLZnl0Vus5rklszhKgvLdklka3cXqYldW9dBarMJbMleDjiApoSg1vZeeXEhNEigo4b305EJqkkBBCe+lJxdSkwQKSngvPbmQmiRQUMJ76cmfDwoCUBCAggAUBKAgAAUBKAhAQQAKAlAQgIIAFARQE+S/L8VtOr9sdgjtejjjnzkQmXm8v6aRBw2hJshfoh78DWbjTWaXPwIctuO1ybjMx519o3NeZEGDqAk6X733m6vbzfWPUKbTt/PEZfZPk3GXfUVBw6gJ6k4f6vLpr4cxSW8af4iizK4aCfIB1AS1//p+4bIbJLwt5Ix/X5LZPV5PGDSEliD/RNa2OXUA9t/LH8F847FIMrtvGJMGDaE7zNvDlQgSZO7NRpQPoivIdgGiJhadub95mEN80BDKgr69RfaXt4LmZ+5uH3YRHzSEliD/yezhRo64o6DYzOd7bKRBQ+iNYu5DtU3snO00ikVl3r+e648waAi9JuYe9uJvAD5P9rsZs/5TE4vK3Pk9Y+5tWdAQXKwCKAhAQQAKAlAQgIIAFASgIAAFASgIQEEACgJQEICCABQEoCAABQEoCEBBAAoCUBCAggAUBKAgAAUBKAhAQYBVCEp8MmUSFASgIED1gtz2lV8UNInb3Nun7fBJo3JBflNdS0FTnB61REFTdBQUhjUIcNrnTEGTODccxUJwHlQ5FASgIAAFASgIQEEACgJQEICCABQEoCAABQEoCEBBAAoCUBCAggAUBKAgAAUBKAhAQQAKAlAQ4A/wb4ixMq4B9wAAAABJRU5ErkJggg==" /><!-- --></p>
+</div>
+</div>
+<div id="references" class="section level1">
+<h1>References</h1>
+<ol style="list-style-type: decimal">
+<li><p>JOINT COMMITTEE ON STRUCTURAL SAFETY, JCSS Probabilistic Model Code. URL: <a href="https://www.jcss-lc.org/" class="uri">https://www.jcss-lc.org/</a>, 2001.</p></li>
+<li><p>UQLAB: A Framework for Uncertainty Quantification in MATLAB, Stefano Marelli and Bruno Sudret, In The 2nd International Conference on Vulnerability and Risk Analysis and Management (ICVRAM 2014), University of Liverpool, United Kingdom, July 13-16, 2014, 2554–2563. DOI: 10.1061/9780784413609.257</p></li>
+<li><p>NOWAK, A. S.; COLLINS, K. R. Reliability of structures. CRC Press, 2012.</p></li>
+<li><p>DIN EN 1992-1-1: 2011-01: DIN EN 1992-1-1: Design of concrete structures – Part 1-1: General rules and rules for buildings; German version EN 1992-1-1:2004 + AC:2010.</p></li>
+<li><p>DIN EN 1992-1-1/NA: 2013-04: National Annex – Nationally determined parameters – DIN EN 1992-1-1: Design of concrete structures – Part 1-1: General rules and rules for buildings.</p></li>
+</ol>
+</div>
+<div id="contact" class="section level1">
+<h1>Contact</h1>
+<p>If there are any questions or problems, feel free to send us a request:</p>
+<p>Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau Karlsstraße 11 88400 Biberach</p>
+<ul>
+<li><a href="mailto:nille-hauf@hochschule-bc.de" class="email">nille-hauf@hochschule-bc.de</a> (<a href="mailto:konstantin.nille-hauf@googlemail.com" class="email">konstantin.nille-hauf@googlemail.com</a>)</li>
+<li><a href="mailto:feiri@hochschule-bc.de" class="email">feiri@hochschule-bc.de</a></li>
+<li><a href="mailto:ricker@hochschule-bc.de" class="email">ricker@hochschule-bc.de</a></li>
+</ul>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>

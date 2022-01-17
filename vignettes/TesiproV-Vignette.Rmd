@@ -1,0 +1,600 @@
+---
+title: "TesiproV Vignette"
+author: "Konstantin Nille-Hauf, Tania Feiri, Marcus Ricker"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{TesiproV Vignette}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+This document describes how the TesiproV package can be used. The package was developed as part of the "TesiproV" research project (sponsored by BMWi, the German Federal Ministry for Economic Affairs and Energy) and is used for the probabilistic safety assessment of structural components and systems. The source code of the package is freely available as open source.
+
+
+# Introduction
+
+In structural engineering, reliability can be seen as a probabilistic measure of assurance of safe performance. The safety level of a structural component or system is expressed by a reliability index, which is normally accepted as a measure of failure probability. 
+To evaluate such safety level, the theory of structural reliability is applied by means of the following verification of inequality: Ed ≤ Rd. Here Ed is the design value of internal forces at the structural component being analysed and Rd is the corresponding design value of resistance.
+The quantification of Ed and Rd, and consequently, the quantification of the safety margin of a structural component or system, is possible through the so-called "limit states". A limit state is a boundary between the desired and undesired performance of a structural component or system. This boundary is often mathematically represented by a "limit state function" (LSF), which is physically modeled by a set of so-called basic random variables Xi.
+
+This package enables the definition of limit state functions and the respective basic random variables affecting the terms Ed and Rd, and allows for the subsequent quantification of the safety margin by means of various reliability assessment methods.  
+The results derived from these methods support a final evaluation of the safety margin of a structural component or system on the basis of normalized values. 
+
+
+# Installation
+The TesiproV package can be installed from the CRAN network:
+
+```{r}
+#install.package("TesiproV")
+library(TesiproV)
+```
+
+
+# Elements of the model
+## Basis variable
+## Basics
+
+A basic random variable is a stochastic model of a quantity/value used in limit state functions. The stochastic model is described by a distribution function and the respective parameters. Such parameters influence the characteristics of the function. Usually one parameter shifts the position of the high point and another parameter shifts the width of the high point. It shall be noted that multiparameter distribution functions are also available. The position and the width can be described by the respective moment statistics (i.e., expected value and standard deviation). 
+Normally, transformation equations are available to derive appropriate moment statistics and remaining input parameters for the following distribution types:
+
+*Normal distribution (norm)
+*Lognormal distribution (lnorm)
+*Gumbel distribution (gumbel) (Package: EVD)
+*Gamma distribution (gamma)
+*Weibull distribution (weibull)
+
+For the characterisation of each distribution function, it is sufficient to specify either the expected value and the standard deviation or the function parameters, since the missing pair of values can be automatically determined. For example, when specifying the expected value and the standard deviation, the covariance is automatically calculated or, on the other way around, a standard deviation is calculated on the basis of the mean value and the covariance.
+For unknown distribution functions, it is necessary to specify the parameters and, if simulated with Monte-Carlo Simulation with Importance Sampling (MC-IS), also the mean value and standard deviation are needed.
+
+### PROB_BASEVAR
+```{r, eval=FALSE}
+PROB_BASEVAR(Id, Name, Description, Package, DistributionType, DistributionParameters, Mean, Sd, Cov, X0)
+```
+
+* ID   numeric, for identification purpose 
+* Name    Name of the var, must be the same as in the function input
+* Description   Description for the output protocol
+* Package   Packagename, which the distributionfunction derives from (dname,pname,qname,rname; name=DistributionType) 
+* DistributionType    Name of the distributionfunction (without the d,p,q or r)
+* Mean    first statistical moment
+* Sd      second statistical moment
+* Cov     Mean/Cov
+* X0      Shift of mean (used for lnorm sometimes)
+
+
+Basic variable using the example of concrete compressive strength.
+As distribution function a logStudentT-distribution adjusted within the package is used. For this distribution a d-,p-,q- and rlt-function is available, therefore Package="TesiproV".
+
+```{r}
+var.f_ck <- PROB_BASEVAR(Id=1,Name="f_ck",Description="Char. Betondruckfestigkeit",Package="TesiproV",                         DistributionType="lt",DistributionParameters=c(3.85,0.09,3,10),Mean=47.35,Sd=5.86)
+```
+
+### PARAM_BASEVAR
+If a parameter calculation is to be carried out, the variable that is to be parameterized must be firstly defined. The PARAM_BASEVAR object is used for this purpose.
+
+Three properties can be parameterized for base variables (definition at "ParamType"):
+* Mean value (Mean)
+* Standard deviation (Sd)
+* Distribution type 
+
+The parameter calculation implies the definition of two properties. For example, if the expected value is selected for ParamType="Mean", the standard deviation and the distribution type must be defined. Furthermore, parametric calculations can be only performed for distribution types for which an automatic parameter transformation is available (see above).
+
+Finally, a vector with the values to be iterated is passed into the ParamValues field. 
+
+
+```{r,eval= FALSE}
+PARAM_BASEVAR(Id, Name, Description, Package, DistributionType, Sd, ParamType, ParamValues)
+```
+
+Parameterized basic variable using the example of effective depth
+In the range from 200mm to 950mm, a value is generated every 50mm, and afterwards, at intervals of 100mm. According to the Probabilistic Model Code, the nominal values are still increased by 10mm.
+```{r, eval=FALSE}
+var.d <- PARAM_BASEVAR(Id=1,Name="d",Description="Stat. Nutzhöhe",DistributionType="norm",Sd=10,ParamType="Mean",ParamValues= c(seq(200,950,50),seq(1000,3000,100))+10)
+```
+
+### PROB_DETVAR
+If no stochastic model is available for a parameter of the limit state function, or if the parameter is to be used with deterministic values, the value can be either directly specified in the function or a deterministic basic variable can be used. The latter approach is consistent and allows for a more flexible and clear modeling of more complex problems. Internally, a normal distribution with infinitesimal small dispersion is modeled for this variable. This ensures that all solution algorithms remain functional without influencing the results.
+
+```{r}
+var.gamma_c <- PROB_DETVAR(Id=1,Name="gamma_c",Description="TSB Beton", Value=1.5)
+```
+
+
+### PARAM_DETVAT
+Frequently, deterministic variables in a parameter calculation also depend on the varying parameter size. In these cases, a parametric deterministic variable can be created. With each iteration of the parametric base variable, the next step of the parametric deterministic variable is also used.
+
+Here, a normal distribution with infinitesimal standard deviation is also modeled. 
+
+Note: Parametric variables are only considered for the parametric system object (SYS_PARAM) while the normal system object (SYS_PROB) only uses the default value.
+```{r}
+var.V_Ed <- PARAM_DETVAR(Id=1,Name="V_Ed",Description="Einwirkende Querkraft", ParamValues=c(1,2,3,4,seq(5,10,0.5)))
+```
+
+## Limit state function (LSF)
+A limit state function can be formulated either as an objective function (function()) or as an arithmetic expression (expression()). Internally, the arithmetic expression is then converted into an objective function. Therefore, this input option enables better usability. In objective functions, all possible programmatic operations can be carried out (i.e., iterations or loops, conditions, optimizations). Accordingly, for simulation methods, they must be neither necessarily continuous nor differentiable. However, if the Mean Value First Order Second Moment (MVFOSM) method is used, the function must be differentiable at the point of the mean values of the input values (i.e., finite difference method). 
+
+Variables are used as input values for the functions. The naming in the function header (`function(E, R)`) must fit to the use in the function belly (`function(E,R){R-E}`). Also, the naming must match the name of the variable itself. Therefore, a `list()` with all used `PROB_BASEVAR()` objects is passed to the SYS_LSF() object (note: the objects with their variable names, here var1 and var2, are to be passed, not the variable name itself). In the case of multiple limit state functions being used, the function can be given a name so that it can be better later assigned in printouts.
+An objective function() can then be defined via the `$func()` property. Alternatively, `$expr()` can be used to assign an `expression(R-E)`.
+By means of `$check()` an internal check run is performed, which ensures that all the base variables are complete and suitable.
+
+
+
+```{r}
+var1 <- PROB_BASEVAR(Name="E",Description="Effect",DistributionType="norm",Mean=10,Sd=1)
+var2 <- PROB_BASEVAR(Name="R",Description="Resistance",DistributionType="norm",Mean=15,Sd=1.5)
+
+
+lsf<-SYS_LSF(vars=list(var1,var2),name="LSF XY")
+lsf$func <- function(E,R){R-E}
+# you can run this check to see if all transformations of the variables worked, all needed data is available and the set of vars fits to the limit state function
+lsf$check()
+
+```
+
+
+## Algorithms
+
+In this package, three different levels (or types) of reliability assessment methods are defined in line with the current European standardization:
+
+* Level 1 (partial safety factors)
+* Level 2 (MVFOSM, FORM, SORM)
+* Level 3 (MC_CRUDE, MCIS, MCSUS)
+
+Levels 2 and 3 can be implemented by means of this package (in order to validate Level 1 procedures, if necessary). The accuracy of the calculated failure probabilities - and ultimately, reliability indexes - increases through the levels.
+
+A solution-oriented approach is always modeled in a so-called `PROB_MACHINE()`, i.e. an object that stands for a solution algorithm. Over the property `fCall`, the following reliability assessment methods are available:
+
+Level 2 Methods:
+* Mean Value First-Order Second Moment (MVFOSM) 
+* Advanced First-Order Reliability Method (FORM)
+* Second-Order Reliability Method (SORM)
+
+Level 3 Methods:
+* Crude Monte-Carlo Simulation (MC_CRUDE)
+* Monte-Carlo Simulation with Importance Sampling (MC_IS)
+* Monte-Carlo Simulation with Subset Sampling (MC_SUS)
+
+The property `$name` serves again for better identification in the later output protocol. A list() object in the `$options` property can then be used to specify special options according to the methods.
+
+
+### MVFOSM
+
+Options:
+
+* h   Genauigkeit partielle Ableitung (Abstand finite Differenzen Methode)
+* isExpression    FALSE/TRUE MVFOSM kann sowohl mit expression als auch mit funktionalen Ausdrücken umgehen.
+
+```{r}
+machine <- PROB_MACHINE(name="MVFOSM",fCall="MVFOSM",options=list("isExpression"= FALSE,"h"=0.1))
+```
+### FORM
+
+Options:
+
+* n_optim max. amount of evaulation runs
+* loctol local accuracy of the optimaziation algorithm (if lower then this value, the optim stops)
+* OptimType Algorithms one can choose: Rackwitz-Fiessler Algorithmus "rackfies" (quite stable) or Augmented Lagrange Solver (fast but sometimes difficult)
+
+```{r}
+machine <- PROB_MACHINE(name="FORM Rack.-Fieß.",fCall="FORM",options=list("n_optim"=20, "loctol"=0.001, "optim_type"="rackfies"))
+
+machine <- PROB_MACHINE(name="FORM Lagrange.",fCall="FORM",options=list("optim_type"="auglag"))
+```
+### SORM
+
+Options:
+
+* No settings possible
+
+```{r}
+machine <- PROB_MACHINE(name="SORM",fCall="SORM")
+```
+### MC
+
+Options:
+
+* cov_user=0.025    abort criterion for cov
+* n_max=1e7         abort cirterion for max cycles of evaluation
+* use_threads = 64  amount of threads for parallel computing (1 = single core calculation)
+* n_batch=100       evaulations each step
+* dataRecord=TRUE   If true, there is a list() with all the data per calculation step in the result (used for visualization of beta)
+
+```{r}
+machine <- PROB_MACHINE(name="MC CoV 0.05",fCall="MC_CRUDE",options=list("n_max"=1e6, "cov_user"=0.05))
+```
+### MCIS
+
+Options:
+
+* cov_user=0.025    abort criterion for cov
+* n_max=1e7         abort cirterion for max cycles of evaluation
+* use_threads = 64  amount of threads for parallel computing (1 = single core calculation)
+* n_batch=100       evaulations each step
+* dataRecord=TRUE   If true, there is a list() with all the data per calculation step in the result (used for visualization of beta)
+* dps               Vector with designpoints. If empty, they will be calculated via a FORM analysis
+
+
+```{r}
+machine <- PROB_MACHINE(name="MC IS",fCall="MC_IS",options=list("cov_user" = 0.05, "n_max"=300000))
+```
+### MCSUS
+
+Options:
+
+* Nsubset=1e5   number of samples in each simulation level
+* p0=0.1        level probability or conditional probability
+* MaxSubsets=10 maximum number of simulation levels that are used to terminate the simulation procedure to avoid infinite loop when the target domain cannot be reached
+* Alpha=0.05    confidence level
+* variance="uniform"
+
+
+```{r}
+machine <- PROB_MACHINE(name="MC Subset Sampling",fCall="MC_SubSam",options=list("variance"="uniform"))
+```
+
+
+## System object
+The system object combines all the previous objects and organizes the correct calculation of the mathematical model.
+To this, there are two objects available:
+
+* SYS_PROB Classical calculation of n systems with m algorithms.
+* SYS_PARAM Parameterized calculation of one system with m algorithm
+
+The `SYS_LSF` object already contains a list of the required basic variables. However, the system object still requires a list of functions to be calculated and the list of algorithms to be used.
+In addition, the `$sys_type` property can be used to specify whether the equations have a series `$sys_type="serial"` or parallel `$sys_type="parallel"` relationship. 
+
+The calculation process is then triggered with `$run_machines()`. In the console, the user is informed about the current state of the calculation. After completing the calculation, the results can be retrieved via the `SYS_PROB` object (in the example below `ps`). For more information see result interpretation.
+
+You can set a debug.level field of SYS_PROB to 2, to get more information during the calculation, by default that value is zero.
+
+
+### Simple and/or system calculation
+
+```{r, results="hide"}
+var1 <- PROB_BASEVAR(Name="E",Description="Effect",DistributionType="norm",Mean=10,Sd=1)
+var2 <- PROB_BASEVAR(Name="R",Description="Resistance",DistributionType="norm",Mean=15,Sd=1.5)
+
+
+lsf<-SYS_LSF(vars=list(var1,var2),name="LSF XY")
+lsf$func <- function(E,R){R-E}
+# you can run this check to see if all transformations of the variables worked, all needed data is available and the set of vars fits to the limit state function
+lsf$check()
+
+
+machine <- PROB_MACHINE(name="FORM Rack.-Fieß.",fCall="FORM",options=list("n_optim"=20, "loctol"=0.001, "optim_type"="rackfies"))
+
+ps <- SYS_PROB(
+  sys_input=list(lsf),
+  probMachines = list(machine),
+  debug.level=0
+)
+
+ps$runMachines()
+
+
+# Systemberechnungn (System aus zwei gleichen LSF´s)
+ps2 <- SYS_PROB(
+  sys_input=list(lsf,lsf),
+  probMachines = list(machine),
+  sys_type="serial"
+)
+
+ps2$runMachines()
+ps2$calculateSystemProbability()
+
+#ps2$calculateSystemProbability("MCSUS")
+
+#params <- list("cov_user"=0.10)
+#ps2$calculateSystemProbability("MCC",params)
+#ps2$calculateSystemProbability("MCIS",params)
+```
+
+
+### Parametric calculation
+A parametric calculation hardly differs in the application from the regular ("normal") calculation. The prerequisite is that a parametric variable (including possibly associated parametric deterministic variables) was used in the modeling of the limit state function. In addition, the system object is called 'SYS_PARAM' instead of 'SYS_PROB'.
+
+```{r, eval=FALSE}
+var1 <- PARAM_BASEVAR(Name="E",Description="Effect",DistributionType="Norm",Sd=1,ParamType="Mean",Values=c(9,11,0.1))
+
+#[...]
+
+ps <- SYS_PARAM(
+  sys_input=list(lsf),
+  probMachines = list(form)
+)
+
+ps$runMachines()
+```
+
+## Interpretation of results and post processing
+After the calculation is completed, the results are available in the `PROB_SYS` object.
+For regular calculations (`PROB_SYS`) the following results can be retrieved:
+
+* Simple calculation
+    * beta_single
+    * res_single
+* System calculations
+    * beta_sys
+    * res_sys
+
+Here beta_* is the beta values summarized while res_* is the full result output via list(). The list `$res_*` is structured as follows `ps$res_*[[lsf]][[machine]]$value`.
+
+For parametric calculation stands:
+* beta_params
+* res_params
+
+where the first list level of `$res_params` corresponds to the parameter iterations.
+The data can be then processed individually.
+
+In addition, the results can be printed to a file using the command `$printResults(filename)`, where filename corresponds to the file name and the file is stored in the current working directory (see getwd() or setwd()).
+
+The project can also be stored differently to allow later postprocessing in other files. For this, the command `$saveProject(level,filename)` is used. The following stages describe a different level of detail:
+
+* 1. Only the beta values are stored.
+* 2. The `$res_*` object is saved.
+* 3. The entire `ps` object is stored.
+* 4. An image of the current working memory is created, which can be reloaded later.
+
+Stages 1 to 3 can be then read back into working memory using the `readRDS(filename)` command, while Stage 4 is reloaded using `load(filename)`.
+
+```{r, eval=FALSE}
+ps <- SYS_PARAM(
+  sys_input=list(lsf),
+  probMachines = list(form)
+)
+
+ps$runMachines()
+
+local_beta <- ps$beta
+local_runtime <- ps$res_single[[1]][[1]]$runtime
+
+#define path with setwd("...")
+ps$printResults("result_file") #Prints a report file in .txt format with all informations about the calculation
+ps$saveProject(4,"project_file") #stores the project in a file
+
+```
+
+# Examples
+
+## Two normal distributed variables
+A limit state equation 20-(x1-x2)^2-8*(x1+x2-4)^3 is to be investigated, where x1 and x2 are normally distributed around the expected value of 0.25 and the standard deviation of 1. The example is taken from the documentation of the UQLab software. 
+
+Firstly, two basic variables are created and assigned to the R variables Var1 and Var2. The first variable is named as "X1" and the second as "X2". These names are then reused in the definition of the limit state function (i.e., to compare the input variables of the function). In addition, both variables receive the indicator "norm" as distribution type (DistributionType) and the mean value defined above or the corresponding standard deviation.
+
+Subsequently, a limit state function object (SYS_LSF) is assigned to the R variable lsf. A list of variables (Var1,Var2) is passed to the object and a name is assigned for later identification. In addition, the corresponding limit state equation is defined via the object property "func".
+
+The R variable "FORM" is assigned a solution method of the Level 2 (FORM) without any additional setting parameters.
+
+Finally, the modules are merged in the SYS_PROB object and the R variable "ps" and the calculation is started by means of the $runMachines() method.
+In the following result log the intermediate results of the individual iteration steps are shown. Using the "ps" object, different results (here, for example, the beta value) can be retrieved after a successful calculation.
+
+
+```{r, results="hide"}
+Var1 <- PROB_BASEVAR(Id=1,Name="X1",DistributionType="norm",Mean=0.25,Sd=1) #kN/m²
+Var2 <- PROB_BASEVAR(Id=2,Name="X2",DistributionType="norm",Mean=0.25,Sd=1) #m
+
+lsf<-SYS_LSF(vars=list(Var1,Var2),name="UQLab 2d_hat")
+lsf$func <- function(X1,X2){
+  return(20-(X1-X2)^2-8*(X1+X2-4)^3)
+}
+
+form<-PROB_MACHINE(name="FORM Rack.-Fieß.",fCall="FORM")
+
+ps <- SYS_PROB(
+  sys_input=list(lsf),
+  probMachines = list(form)
+)
+ps$runMachines()
+```
+
+```{r}
+ps$beta_single
+```
+
+## Non-normally distributed basic variable
+To demonstrate non-normally distributed basic variables, an example from Nowak & Collins (Example 5.11, Page 127/128) is calculated. Here normally distributed, lognormally distributed as well as gumbel distributed variables are used. While "norm" and "lnorm" are still contained in the standard scope of R (package "stats") the Gumbel distribution is to be considered on the basis of the EVD-package (EVD := extreme value distributions).
+
+```{r, results ='hide'}
+library("evd")
+X1 <- PROB_BASEVAR(Id=1,Name="Z",DistributionType="norm",Mean=100,Cov=0.04) #kN/m²
+X2 <- PROB_BASEVAR(Id=2,Name="Fy",DistributionType="lnorm",Mean=40,Cov=0.1) #m
+X3 <- PROB_BASEVAR(Id=2,Name="M",DistributionType="gumbel",Package="evd",Mean=2000,Cov=0.1) #m
+
+lsf<-SYS_LSF(vars=list(X1,X2,X3),name="Nowak & Collins Exp5.11_1")
+lsf$func <- function(M,Fy,Z){
+  K <- Z*Fy
+  return(0.9*K-M)
+}
+
+form<-PROB_MACHINE(name="FORM Rack.-Fieß.",fCall="FORM")
+
+ps <- SYS_PROB(
+  sys_input=list(lsf),
+  probMachines = list(form)
+)
+ps$runMachines()
+```
+
+```{r}
+ps$beta_single
+```
+
+
+
+## Multiple limit state functions in one system
+
+Basically, the "SYS_PROB" object is able to calculate several LSF's by means of Level 2 as well as Level 3 methods. This can be used if a system consists of several limit state functions and if the system safety is to be determined by means of so-called SimpleBounds. In this case, the failure probability must be determined for each individual limit state equation and then calculated to a system failure probability. On the other hand, the development of a limit state function often poses several variants in equations or variables, so that by the simultaneous calculation of several equations satisfactory comparability is achieved and a high usability remains granted.
+
+If, however, the system failure probability is not to be estimated by means of the SimpleBounds, but is to be approximated by simulation methods (e.g., MC-Crude), a system must also be constructed according to the following scheme.
+
+In this example, the above examples are first determined individually as a system using a FORM calculation and then the system failure probability is determined using different methods.
+
+
+
+```{r, results="hide"}
+
+Var1 <- PROB_BASEVAR(Id=1,Name="X1",DistributionType="norm",Mean=0.25,Sd=1) #kN/m²
+Var2 <- PROB_BASEVAR(Id=2,Name="X2",DistributionType="norm",Mean=0.25,Sd=1) #m
+
+lsf1<-SYS_LSF(vars=list(Var1,Var2),name="UQLab 2d_hat")
+lsf1$func <- function(X1,X2){
+  return(20-(X1-X2)^2-8*(X1+X2-4)^3)
+}
+
+
+X1 <- PROB_BASEVAR(Id=1,Name="Z",DistributionType="norm",Mean=100,Cov=0.04) #kN/m²
+X2 <- PROB_BASEVAR(Id=2,Name="Fy",DistributionType="lnorm",Mean=40,Cov=0.1) #m
+X3 <- PROB_BASEVAR(Id=2,Name="M",DistributionType="gumbel",Package="evd",Mean=2000,Cov=0.1) #m
+
+lsf2<-SYS_LSF(vars=list(X1,X2,X3),name="Nowak & Collins Exp5.11_1")
+lsf2$func <- function(M,Fy,Z){
+  K <- Z*Fy
+  return(0.75*K-M)
+}
+
+form<-PROB_MACHINE(name="FORM Rack.-Fieß.",fCall="FORM")
+
+ps <- SYS_PROB(
+  sys_input =list(lsf1,lsf2),
+  sys_type = "serial",
+  probMachines = list(form)
+)
+ps$runMachines()
+
+```
+
+```{r}
+ps$beta_single
+
+ps$calculateSystemProbability()
+ps$beta_sys
+```
+
+
+The following lines are not executed because the calculation time is several minutes depending on the machine.
+Results in the range of the above interval are to be expected. The results can be retrieved after the calculation using "$beta_sys".
+```{r, eval=FALSE}
+params <- list("cov_user"=0.05,"n_max"=50000)
+ps$calculateSystemProbability("MC",params)
+
+params <- list("cov_user"=0.05,"n_max"=50000)
+ps$calculateSystemProbability("MCIS",params)
+
+ps$calculateSystemProbability("MCSUS",params)
+```
+
+## Parameterstudy
+
+* Punching according to DIN EN 1992-1 + NAD
+* Effective depth (var.d) is parameterized (cf. vector at "ParamValues")
+* Additional parametric deterministic variable "var.V_Ed" which depends on "pre.d
+* Calculation by FORM and postprocessing see below.
+
+
+```{r, results="hide", warning=FALSE}
+var.d <- PARAM_BASEVAR(Id=1,Name="d",Description="Stat. Nutzhöhe",DistributionType="norm",Sd=10,ParamType="Mean",ParamValues= c(seq(200,800,50),seq(1000,3000,100))+10)
+pre.d <- c(seq(200,800,50),seq(1000,3000,100))
+
+var.f_ck <- PROB_BASEVAR(Id=1,Name="f_ck",Description="Char.Betondruckfestigkeit",Package="TesiproV",DistributionType="lt",DistributionParameters=c(3.85,0.09,3,10),Mean=47.35,Sd=5.86)
+pre.f_ck <- 35
+
+var.f_ywk <- PROB_BASEVAR(Id=1,Name="f_ywk",Description="Zugfestigkeit Bügelbewehrung",DistributionType="norm",Mean=560,Cov=0.02)
+pre.f_ywk <- 500
+
+var.f_yk <- PROB_BASEVAR(Id=1,Name="f_yk",Description="Zugfestigkeit Längsbewehrung",DistributionType="norm",Mean=560,Sd=30)
+pre.f_yk <- 500
+
+var.rho_l <- PROB_BASEVAR(Id=1,Name="rho_l",Description="Biegebewehrungsgrad",DistributionType="norm",Mean=0.01,Cov=0.02)
+pre.rho_l <- var.rho_l$Mean
+
+var.c_D <- PROB_BASEVAR(Id=1,Name="c_D",Description="Stützendurchmesser",DistributionType="norm",Mean=500+0.003*500,Sd=4+0.006*500)
+pre.c_D <- 500
+
+var.theta_c <- PROB_BASEVAR(Id=1,Name="theta_c",Description="Modellunsicherheit c nach DIBT",DistributionType="lnorm", Mean=1.0644,Cov=0.1679)
+
+var.gamma_c <- PROB_DETVAR(Id=1,Name="gamma_c",Description="TSB Beton", Value=1.5)
+var.gamma_s <- PROB_DETVAR(Id=1,Name="gamma_s",Description="TSB Stahl", Value=1.15)
+var.alpha_cc <- PROB_DETVAR(Id=1,Name="alpha_cc",Description="Langzeitfaktor AlphaCC", Value=0.85)
+
+V_Ed <- c(0.6412447,0.8760515,1.1424185,1.4399554,1.7554079,2.0188587,2.3003489,2.5997038,2.9167825,3.2514671,3.6036567,3.9732630,
+          4.3602076,6.0800504,7.0424326,8.0726216,9.1702994,10.3351829,11.5670173,12.8655715,14.2306347,15.6620132,17.1595283,18.7230145,
+          20.3523175,22.0472935,23.8078076,25.6337332,27.5249511,29.4813487,31.5028193,33.5892621,35.7405811,37.9566849)
+var.V_Ed <- PARAM_DETVAR(Id=1,Name="V_Ed",Description="Einwirkende Querkraft", ParamValues=unlist(V_Ed))
+
+lsf1 <-SYS_LSF(vars=list(var.d,var.f_ck,var.f_yk,var.f_ywk,var.rho_l,var.c_D,
+                         var.theta_c,var.V_Ed,var.gamma_c,var.gamma_s,var.alpha_cc),
+               name="Durchstanzwiderstand ohne Bewehrung")
+lsf1$func <- function(d, f_ck,f_yk,f_ywk, rho_l, c_D, theta_c, V_Ed, gamma_c, gamma_s, alpha_cc){
+
+  f_cd <- f_ck*alpha_cc/gamma_c
+  f_yd <- f_yk/gamma_s
+  f_ywd <- f_ywk/gamma_s
+
+  u_0 <- c_D*pi
+  u_1 <- (c_D/2+2*d)*2*pi
+  u_0.5 <- (c_D/2+0.5*d)*2*pi
+
+  k <- min(1+sqrt(200/d),2)
+
+  if((u_0/d)<4){
+    C_Rd_c <- 0.18 * (0.1*u_0/d + 0.6)
+  }else{
+    C_Rd_c <- 0.18
+  }
+  rho_l <- min(rho_l,0.5*f_cd/f_yd,0.02)
+  C_Rd_c1 <- C_Rd_c * k * (100*rho_l*f_ck)^(1/3)
+
+  v_Rd_c <- C_Rd_c1
+  V_Rd_c <- v_Rd_c*d*u_1*1e-6*theta_c
+  return(V_Rd_c-V_Ed)
+}
+
+form <- PROB_MACHINE(name="FORM RF.",fCall="FORM",options=list("n_optim"=20, "loctol"=0.0001, "optim_type"="rackfies"))
+
+ps <- SYS_PARAM(
+  sys_input=list(lsf1),
+  probMachines = list(form)
+)
+ps$runMachines()
+```
+
+```{r}
+d <- pre.d
+betas <- unlist(unname(ps$beta_params))
+plot(x=d,y=betas,type="l")
+```
+
+# References
+1. JOINT COMMITTEE ON STRUCTURAL SAFETY, JCSS Probabilistic Model Code. URL: https://www.jcss-lc.org/, 2001. 
+
+2. UQLAB: A Framework for Uncertainty Quantification in MATLAB, Stefano Marelli and Bruno Sudret, In The 2nd International Conference on Vulnerability and Risk Analysis and Management (ICVRAM 2014), University of Liverpool, United Kingdom, July 13-16, 2014, 2554–2563. DOI: 10.1061/9780784413609.257
+
+3. NOWAK, A. S.; COLLINS, K. R. Reliability of structures. CRC Press, 2012.
+
+4. DIN EN 1992-1-1: 2011-01: DIN EN 1992-1-1: Design of concrete structures – Part 1-1: General rules and rules for buildings; German version EN 1992-1-1:2004 + AC:2010. 
+
+5. DIN EN 1992-1-1/NA: 2013-04: National Annex – Nationally determined parameters – DIN EN 1992-1-1: Design of concrete structures – Part 1-1: General rules and rules for buildings. 
+
+
+
+# Contact
+If there are any questions or problems, feel free to send us a request:
+
+Hochschule Biberach,
+Institut fuer Konstruktiven Ingenieurbau
+Karlsstraße 11
+88400 Biberach
+
+
+* nille-hauf@hochschule-bc.de (konstantin.nille-hauf@googlemail.com)
+* feiri@hochschule-bc.de
+* ricker@hochschule-bc.de
+
+
