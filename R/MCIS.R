@@ -31,14 +31,16 @@
 #' @export
 
 
-MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
+MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=6,
                 sys_type="parallel",dataRecord=TRUE,beta_l=100,densityType="norm",dps=NULL,debug.level=0){
+
+  # There is no implementation for parallelisation for the system calculation! See single calculation below that function block
 
   # SystemProbablity
   if(is.list(lsf)){
     debug.TAG <- "MC_IS_System"
     debug.print(debug.level,debug.TAG,c(TRUE), msg="Monte-Carlo Simulation with Importance Sampling started...")
-    tic<-Sys.time()
+    tic<-proc.time()
 
     # Amount of LSF´s
     n_lsfs <- length(lsf)
@@ -96,31 +98,18 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
     # FORM Analysis
     for(i in 1:n_lsfs){
 
-      # if(is.numeric(dps[i])){ # Vorgegebene Designpunkte, Beta wird dennoch mit FORM ermittelt
-      #   res_form[[i]]<- TesiproV::FORM(lsf[[i]],lDistr[[i]],n_optim=20, loctol = 0.0001)
-      #   res_form.dp[[i]] <- dps
-      # }else{
-      #   if(dps[i]=="SORM"){ # Betas und DPs sollen mit SORM ermittelt werden
-      #     res_form[[i]]<- TesiproV::SORM(lsf[[i]],lDistr[[i]])
-      #     res_form.dp[[i]] <- res_form[[i]]$design.point_X
-      #
-      #   }else{ # Betas und DPs werden mit FORM ermittelt
-      #     res_form[[i]]<- TesiproV::FORM(lsf[[i]],lDistr[[i]],n_optim=20, loctol = 0.0001)
-      #     res_form.dp[[i]] <- res_form[[i]]$x_points
-      #   }
-      # }
-
       res_form[[i]]<- TesiproV::FORM(lsf[[i]],lDistr[[i]],n_optim=20, loctol = 0.0001)
       res_form.dp[[i]] <- res_form[[i]]$x_points
       res_form.beta[[i]] <- res_form[[i]]$beta
       if(res_form.beta[[i]] < beta_l){
         res_form.beta_l <- append(res_form.beta_l, res_form.beta[[i]])
       }
-      if (!is.null(dps)){
-        if(is.list(dps) && length(dps)==n_lsfs){
+
+      if (!is.null(dps)){ # Check if a predefined vector of design points is available and should be used
+        if(is.list(dps) && length(dps)==n_lsfs){ # check if datatype is appropiate
           if(!is.null(dps[[i]])){
-            if(length(dps[[1]]) == length(res_form.dp[[i]])){
-              res_form.dp[[i]] <- dps[[i]]
+            if(length(dps[[1]]) == length(res_form.dp[[i]])){ # check if length of predefined vector fits to lsf
+              res_form.dp[[i]] <- dps[[i]] # assign predefined
             }else{
               warning(sprintf("The amount (%i) of defined designpoints for lsf #%i does not fit to the required amount (%i)",
                       length(dps[[i]]),i,length(res_form.dp[[i]])))
@@ -133,10 +122,10 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
 
     }
 
-    # Zur Vereinfachung wird bisher noch nicht mit beta_l gerechnet!
+    # Zur Vereinfachung wird bisher noch nicht mit beta_l gerechnet!!!
 
 
-    # Wichtungsfaktoren
+    # Wichtungsfaktoren für die multimodale Samplingfunktion ermitteln anhand Beta-Werte der LSF-FORM Analyse
     ai <- matrix(nrow=n_vars_unique, ncol=n_lsfs)
     for(i in 1:n_vars_unique){
       sum_beta <- sum(1/unlist(res_form.beta[lsf.in.var[[i]]]))
@@ -144,6 +133,7 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
     }
 
 
+    # Strukturierung der DP-Matrix auf var.map
     dp <- matrix(nrow=n_vars_unique, ncol=n_lsfs)
     for(i in 1:n_lsfs){
       varids <- var.in.lsf[[i]]
@@ -157,17 +147,15 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
     dp.means <- rowMeans(dp,na.rm = TRUE)
 
 
+    # Aufsetzten der Multi-Modalen mit ai multiplizierten Ersatzdichtefunktionen h_v je Basisvariable
     hv_func <- list()
     hv_func2 <- list()
     dp.mean <- vector("numeric",n_vars_unique)
     samplingArea <- list()
     for(p in 1:length(vars)){
-
       hv_func[[p]] <-  eval(substitute(function(...){
-           hv_loc <- 0
+          hv_loc <- 0
           for(u in 1:length(lsfvars[[lp]])){
-
-
             if(lvars[[lp]][[1]]$DistributionType=="lnorm" || lvars[[lp]][[1]]$DistributionType=="lt" || lvars[[lp]][[1]]$DistributionType=="weibull"){
               dfun <- "stats::dlnorm"
 
@@ -183,14 +171,6 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
               p2 <- lvars[[lp]][[1]]$Sd
             }
 
-            # if(densityType=="origin"){
-            #   dfun <- paste(lvars[[lp]][[1]]$DistributionPackage,"::d",lvars[[lp]][[1]]$DistributionType,sep="")
-            # }else{
-            #   dfun <- paste("stats::d",densityType,sep="")
-            # }
-            # hv_loc <- hv_loc + lai[lp,u]*dnorm(...,ldp[lp,u],lvars[[lp]][[1]]$Sd)
-
-            # hv_loc <- hv_loc + lai[lp,lsfvars[[lp]][u]]*do.call((eval(parse(text=dfun))),list(...,ldp[lp,lsfvars[[lp]][u]],lvars[[lp]][[1]]$Sd))
             hv_loc <- hv_loc + lai[lp,lsfvars[[lp]][u]]*do.call((eval(parse(text=dfun))),list(...,p1,p2))
           }
           hv_loc
@@ -200,34 +180,10 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
       samplingWidth <- 4
       xmin <- min(dp[p,],na.rm=TRUE)-samplingWidth*vars[[p]][[1]]$Sd
       xmax <- max(dp[p,],na.rm=TRUE)+samplingWidth*vars[[p]][[1]]$Sd
-      # samplingArea[[p]] <- seq(vars[[p]][[1]]$q(0.000001),vars[[p]][[1]]$q(1-0.000001),length.out=2e4)+(dp.means[p]-vars[[p]][[1]]$mean)
-      # qfun <- paste(vars[[p]][[1]]$DistributionPackage,"::q",vars[[p]][[1]]$DistributionType,sep="")
-
-      # xmin <- do.call((eval(parse(text=qfun))),list(x,min(dp[p,]),vars[[p]][[1]]$Sd))
-      # xmax <- do.call((eval(parse(text=qfun))),list(1-x,min(dp[p,]),vars[[p]][[1]]$Sd))
-#
-#       x <- 0.000001
-#       xmin <- vars[[p]][[1]]$q(x)-abs((vars[[p]][[1]]$mean-min(dp[p,],na.rm = TRUE)))
-#       if (!(vars[[p]][[1]]$p(-1)>0)){
-#         if(xmin<0){
-#           xmin <- 0.001
-#         }
-#       }
-#       xmax <- vars[[p]][[1]]$q(1-x)+abs(vars[[p]][[1]]$mean-max(dp[p,],na.rm = TRUE))
 
       samplingArea[[p]] <- seq(xmin,xmax,length.out=1e4)
       hv_func[[p]] <- edfun(dfun = hv_func[[p]],x=samplingArea[[p]])
     }
-
-
-    # for(p in 1:length(vars)){
-    #   hist(hv_func[[p]]$rfun(1e6),main=vars[[p]][[1]]$name)
-    #   q <- seq(0,1,0.01)
-    #   plot(x=q,y=hv_func[[p]]$qfun(q),type="l",main=vars[[p]][[1]]$name)
-    #   x <- samplingArea[[p]]
-    #   plot(x=x,y=hv_func[[p]]$dfun(x),type="l",main=vars[[p]][[1]]$name)
-    # }
-
 
 
     I_sum <- 0
@@ -238,12 +194,19 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
     k <- 0
     beta <- 0
 
-    data.pf <- vector("numeric",n_max)
-    data.I_sum <- vector("numeric",n_max)
-    data.var <- vector("numeric",n_max)
-    data.cov <- vector("numeric",n_max)
-    data.n_sim <- vector("numeric",n_max)
-    data.time <- vector("numeric",n_max)
+    if(dataRecord){
+      l_size=n_max/(use_threads*n_batch)
+      data.pf <- vector("numeric",l_size)
+      data.I_sum <- vector("numeric",l_size)
+      data.var <- vector("numeric",l_size)
+      data.cov <- vector("numeric",l_size)
+      data.n_sim <- vector("numeric",l_size)
+      data.time.user <- vector("numeric",l_size)
+      data.time.sys <- vector("numeric",l_size)
+      data.time.elapsed <- vector("numeric",l_size)
+      data.time.user.child <- vector("numeric",l_size)
+      data.time.sys.child <- vector("numeric",l_size)
+    }
 
     while(1){
       v <- vector("numeric",n_lsfs)
@@ -278,7 +241,12 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
       if(dataRecord){
         data.I_sum[k] <- I_sum
         data.n_sim[k] <- n_sim
-        data.time[k] <- Sys.time()-tic
+        p_stamp <- proc.time()-tic
+        data.time.user[k] <- p_stamp[1]
+        data.time.sys[k] <- p_stamp[2]
+        data.time.elapsed[k] <- p_stamp[3]
+        data.time.user.child[k] <- p_stamp[4]
+        data.time.sys.child[k] <- p_stamp[5]
       }
 
         if((n_sim>1 && !(is.nan(pf_i)|is.na(pf_i)) && pf_i>0)){
@@ -300,7 +268,7 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
     }
 
     cat("\n")
-    duration<-Sys.time()-tic
+    duration<-proc.time()-tic
 
     if(dataRecord){
       range <- 1:k
@@ -309,8 +277,12 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
         "pf"=data.pf[range],
         "var"=data.var[range],
         "cov"=data.cov[range],
-        "time"=data.time[range],
-        "I_sum"=data.I_sum[range]
+        "I_sum"=data.I_sum[range],
+        "time.user"=data.time.user[range],
+        "time.sys"=data.time.sys[range],
+        "time.elapsed"=data.time.elapsed[range],
+        "time.user.child"=data.time.user.child[range],
+        "time.user.sys"=data.time.sys.child[range]
       )
     }else{
       df <- data.frame()
@@ -329,15 +301,15 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
       "n_mc"=n_sim,
       "n_max"=n_max,
       "data"=df,
-      "runtime"=duration
+      "runtime"=duration[1:5]
     )
     debug.print(debug.level,debug.TAG,c(duration), msg="Monte-Carlo Simulation with Importance Sampling finished in [s]: ")
     return(output)
 
-
-
-
-  ##########################################################################SingleProbablity####################################################################
+    ##########################################################################SingleProbablity####################################################################
+    ##########################################################################SingleProbablity####################################################################
+    ##########################################################################SingleProbablity####################################################################
+    ##########################################################################SingleProbablity####################################################################
   # Actually MC_IS_SYS is able to calculate a single LSF correctly but is a bit more unefficient since it samples the quantile of the density function
   # instead of using the implemented versions
   # thats why this second implementation is faster and still used
@@ -345,7 +317,7 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
 
     debug.TAG <- "MC_IS_Single"
     debug.print(debug.level,debug.TAG,c(TRUE), msg="Monte-Carlo Simulation with Importance Sampling started...")
-    tic<-Sys.time()
+    tic<-proc.time()
 
     # Initializing vars
     n_vars <- length(lDistr)
@@ -368,6 +340,10 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
     # Function is driven via multi threading
     # n_batch determines how many samples should be taken each thread, if its to small the computaional affort to organize the multi threading
     # is to big (overhead-problem) and if n_batch is to big the steps of COV are too big and will overshoot the destinated cov by far (more threads used than necessary)
+    if(use_threads>1){
+      RNGkind(kind="L'Ecuyer-CMRG")
+    }
+
     mc_local<-function(x){
       v<-matrix(nrow=n_batch, ncol=n_vars)
       hv_i <- matrix(nrow=n_batch, ncol=n_vars)
@@ -395,6 +371,7 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
       fx <- apply(fx_i,1,prod)
       hv <- apply(hv_i,1,prod)
 
+      # Grenzzustandsfunktion mit gezogenen Zufallszahlen v auswerten und in I als 0/1 abspeichern
       I<-as.numeric(apply(v,1,lsf)<0)
 
       qt <- fx/hv
@@ -411,19 +388,32 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
     var_mc<-0
     I_mc<-0
 
-    data.pf_mc <- vector("numeric",n_max)
-    data.var_mc <- vector("numeric",n_max)
-    data.I_mc <- vector("numeric",n_max)
-    data.pf <- vector("numeric",n_max)
-    data.var <- vector("numeric",n_max)
-    data.cov <- vector("numeric",n_max)
-    data.n_sim <- vector("numeric",n_max)
-    data.time <- vector("numeric",n_max)
+    if(dataRecord){
+      l_size=n_max/(use_threads*n_batch)
+      data.pf_mc <- vector("numeric",l_size)
+      data.var_mc <- vector("numeric",l_size)
+      data.I_mc <- vector("numeric",l_size)
+      data.pf <- vector("numeric",l_size)
+      data.var <- vector("numeric",l_size)
+      data.cov <- vector("numeric",l_size)
+      data.n_sim <- vector("numeric",l_size)
+      data.time.user <- vector("numeric",l_size)
+      data.time.sys <- vector("numeric",l_size)
+      data.time.elapsed <- vector("numeric",l_size)
+      data.time.user.child <- vector("numeric",l_size)
+      data.time.sys.child <- vector("numeric",l_size)
+    }
+
     k <- 0
     while (1)
     {
       k <- k+1
-      r<-parallel::mclapply(seq(1:use_threads),mc_local)
+      if(Sys.info()[1]=="Windows"){
+        r<-parallel::mclapply(seq(1:use_threads),mc_local, mc.cores = 1)
+      }else{
+        r<-parallel::mclapply(seq(1:use_threads),mc_local, mc.cores = use_threads)
+        stats::runif(1)
+      }
 
       for(i in 1:use_threads){
         pf_mc<-pf_mc+r[[i]][[1]]
@@ -438,7 +428,13 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
         data.var_mc[k] <- r[[i]][[2]]
         data.I_mc[k] <- r[[i]][[2]]
         data.n_sim[k] <- n_sim
-        data.time[k] <- Sys.time()-tic
+
+        p_stamp <- proc.time()-tic
+        data.time.user[k] <- p_stamp[1]
+        data.time.sys[k] <- p_stamp[2]
+        data.time.elapsed[k] <- p_stamp[3]
+        data.time.user.child[k] <- p_stamp[4]
+        data.time.sys.child[k] <- p_stamp[5]
       }
 
       if(!(is.nan(pf_mc)|is.na(pf_mc)) & pf_mc>0 & n_sim >1){
@@ -477,14 +473,18 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
         "pf"=data.pf[range],
         "var"=data.var[range],
         "cov"=data.cov[range],
-        "time"=data.time[range]
+        "time.user"=data.time.user[range],
+        "time.sys"=data.time.sys[range],
+        "time.elapsed"=data.time.elapsed[range],
+        "time.user.child"=data.time.user.child[range],
+        "time.user.sys"=data.time.sys.child[range]
       )
     }else{
       df <- data.frame()
     }
 
     cat("\n")
-    duration<-Sys.time()-tic
+    duration<-proc.time()-tic
 
     output<-list(
       "method"="MCIS_Single",
@@ -492,16 +492,21 @@ MC_IS<-function(lsf,lDistr,cov_user=0.05,n_batch=16,n_max=1e6,use_threads=8,
       "pf"=pf,
       "FORM_beta"=res_form$beta,
       "FORM_pf"=res_form$pf,
-      "design_points"=res_form$x_points,
+      "design_points"=dp,
       "var"=var,
       "cov_mc"=cov,
       "cov_user"=cov_user,
       "n_mc"=n_sim,
       "n_max"=n_max,
       "data"=df,
-      "runtime"=duration
+      "runtime"=duration[1:5]
     )
     debug.print(debug.level,debug.TAG,c(duration), msg="Monte-Carlo Simulation with Importance Sampling finished in: ")
     return(output)
   }
 }
+
+
+
+
+

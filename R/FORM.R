@@ -30,7 +30,7 @@ FORM<-function(lsf,lDistr,n_optim=10,loctol=1e-2,optim_type="rackfies",debug.lev
 
   debug.TAG <- "FORM_OP"
   debug.print(debug.level,debug.TAG,c(optim_type), msg="FORM Algorithm started with Solvingtype:")
-  tic<-Sys.time()
+  tic<-proc.time()
 
   n_vars <- length(lDistr)
 
@@ -98,7 +98,7 @@ FORM<-function(lsf,lDistr,n_optim=10,loctol=1e-2,optim_type="rackfies",debug.lev
         return()
       }
 
-      duration<-Sys.time()-tic
+      duration<-proc.time()-tic
       output<-list(
         "beta"=min(beta),
         "pf"=stats::pnorm(-abs(min(beta))),
@@ -186,7 +186,7 @@ FORM<-function(lsf,lDistr,n_optim=10,loctol=1e-2,optim_type="rackfies",debug.lev
       }
 
 
-      duration<-Sys.time()-tic
+      duration<-proc.time()-tic
       output<-list(
         "method"="FORM",
         "beta"=beta,
@@ -197,7 +197,7 @@ FORM<-function(lsf,lDistr,n_optim=10,loctol=1e-2,optim_type="rackfies",debug.lev
         "diff"=diff,
         "n_sim"=n_sim,
         "optim_type"=optim_type,
-        "runtime"=duration
+        "runtime"=duration[1:5]
       )
     }
   #Postprocessing

@@ -42,7 +42,7 @@ MC_SubSam <- function(lsf, # limit-state function
 
   debug.TAG <- "MC_SUS"
   debug.print(debug.level,debug.TAG,c(TRUE), msg="Monte-Carlo Simulation with Subset Sampling started...")
-  tic<-Sys.time()
+  tic<-proc.time()
   # === Transformation to the standard Gaussian space U and initial algorithm parameters definition ==
 
   # Isoprobabilistic transformation to the standard Gaussian space U
@@ -235,7 +235,7 @@ MC_SubSam <- function(lsf, # limit-state function
 
 
   cat("\n")
-  duration<-Sys.time()-tic
+  duration<-proc.time()-tic
 
   output<-list(
     "method"="MCS",
@@ -247,7 +247,7 @@ MC_SubSam <- function(lsf, # limit-state function
     "NumOfSubsets"=ii,
     "NumOfEvalLSF_nom"=ii*Nsubset,
     "NumOfEvalLSF_eff"=LFScounter,
-    "runtime"=duration
+    "runtime"=duration[1:5]
   )
   info.print(debug.TAG,debug.level,c("Beta","pf","CoV","NumOfEvalLSF_eff"),c(ResBeta,ResPf,CoV,LFScounter))
 

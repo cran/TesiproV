@@ -9,9 +9,9 @@
 #' @param cov_user The Coefficent of variation the simulation should reach
 #' @param n_max maximum of iteration the MC should do - its like a stop criterion
 #' @param n_batch Size per batch for parallel computing
-#' @param use_threads TRUE for parallel computing, false for single core
+#' @param use_threads Number of threads for parallel computing, use_threds=1 for single core. Doesnt work on windows!
 #' @param dataRecord If True all single steps are recorded and available in the results file after on
-#' @param debug.level If 0 no additional info if 2 high output during calculation
+#' @param debug.level If 0 no additional info, if 2 high output during calculation
 #'
 #' @return The results will be provided within a list with the following objects. Acess them with "$"-accessor
 #' @return pf probablity of failure
@@ -29,11 +29,11 @@
 #' @export
 #'
 
-MC_CRUDE<-function(lsf,lDistr,cov_user=0.025,n_batch=100,n_max=1e7,use_threads = 64,dataRecord=TRUE,debug.level=0){
+MC_CRUDE<-function(lsf,lDistr,cov_user=0.05,n_batch=400,n_max=1e7,use_threads = 6,dataRecord=TRUE,debug.level=0){
 
   debug.TAG <- "MC_Crude"
   debug.print(debug.level,debug.TAG,c(TRUE), msg="Crude Monte-Carlo Simulation started...")
-  tic<-Sys.time()
+  tic<-proc.time()
   pf<-1
   I_n <- 0
   pf_i <- 0
@@ -44,16 +44,28 @@ MC_CRUDE<-function(lsf,lDistr,cov_user=0.025,n_batch=100,n_max=1e7,use_threads =
   cov_mc <- +Inf
   k <- 0
 
-  data.pf <- vector("numeric",n_max)
-  data.var <- vector("numeric",n_max)
-  data.cov <- vector("numeric",n_max)
-  data.n_sim <- vector("numeric",n_max)
-  data.time <- vector("numeric",n_max)
+  if(dataRecord){
+    l_size=n_max/(use_threads*n_batch)
+    data.pf <- vector("numeric",l_size)
+    data.var <- vector("numeric",l_size)
+    data.cov <- vector("numeric",l_size)
+    data.n_sim <- vector("numeric",l_size)
+    data.time.user <- vector("numeric",l_size)
+    data.time.sys <- vector("numeric",l_size)
+    data.time.elapsed <- vector("numeric",l_size)
+    data.time.user.child <- vector("numeric",l_size)
+    data.time.sys.child <- vector("numeric",l_size)
+  }
 
   #mc_local is used for parallelisation purpose
+  if(use_threads>1){
+    RNGkind(kind="L'Ecuyer-CMRG")
+  }
+
+
   mc_local <- function(x){
     for(i in 1:n_vars){
-      v[,i]<-lDistr[[i]][[1]]$r(n_batch) #do.call(paste("r",lDistr[[i]][[1]], sep = ""),list(n_batch,lDistr[[i]][[2]][1],lDistr[[i]][[2]][2]))
+      v[,i]<-lDistr[[i]][[1]]$r(n_batch)
     }
     I<-sum(as.numeric(apply(v,1,lsf)<0))
     return(I)
@@ -61,25 +73,24 @@ MC_CRUDE<-function(lsf,lDistr,cov_user=0.025,n_batch=100,n_max=1e7,use_threads =
 
   while(1){
 
-    # #create Realisations
-    if(use_threads>1){
-      I_n <- I_n + sum(unlist(parallel::mclapply(seq(1,use_threads),mc_local)))
-      n_sim <- n_sim + use_threads*n_batch
-    }else{
-      # This case is for comparsion between multicore and single core (mclapply vs apply...)
-      for(i in 1:n_vars){
-        v[,i]<-lDistr[[i]][[1]]$r(n_batch) #do.call(paste("r",lDistr[[i]][[1]], sep = ""),list(n_batch,lDistr[[i]][[2]][1],lDistr[[i]][[2]][2]))
-      }
-      #Evaluate LSF
-      I<-as.numeric(apply(v,1,lsf)<0)
-      n_sim<-n_sim+n_batch
-      I_n <- I_n+sum(I)
+    # create Realisations
+    if (Sys.info()[[1]]=="Windows"){ #Windows is not able to fork - parallelisation under windows os not efficient
+      I_n <- I_n + sum(unlist(parallel::mclapply(seq(1,use_threads),mc_local, mc.cores=1)))
+    }else{ # parallelisation for unix based platforms (macOS, Linux etc.)
+      I_n <- I_n + sum(unlist(parallel::mclapply(seq(1,use_threads),mc_local, mc.set.seed = TRUE, mc.cores=use_threads)))
+      stats::runif(1)
     }
+    n_sim <- n_sim + use_threads*n_batch
 
     k <- k+1
     if(dataRecord){
       data.n_sim[k] <- n_sim
-      data.time[k] <- Sys.time()-tic
+      p_stamp <- proc.time()-tic
+      data.time.user[k] <- p_stamp[1]
+      data.time.sys[k] <- p_stamp[2]
+      data.time.elapsed[k] <- p_stamp[3]
+      data.time.user.child[k] <- p_stamp[4]
+      data.time.sys.child[k] <- p_stamp[5]
     }
 
 
@@ -88,7 +99,7 @@ MC_CRUDE<-function(lsf,lDistr,cov_user=0.025,n_batch=100,n_max=1e7,use_threads =
     if(I_n>0){
       pf <- I_n/n_sim
       var <- 1/(n_sim-1)*((1/n_sim)*I_n-pf^2)
-      cov_mc <- sqrt(var)/pf;
+      cov_mc <- sqrt(var)/pf
 
       if(dataRecord){
         data.pf[k] <- pf
@@ -107,12 +118,18 @@ MC_CRUDE<-function(lsf,lDistr,cov_user=0.025,n_batch=100,n_max=1e7,use_threads =
       info.print(debug.TAG,debug.level,c("I_n","pf", "cov", "nsim"),c(I_n, "NA","NA",n_sim))
     }
 
+    if(!is.numeric(cov_mc)){
+      cov_mc <- 1
+      warning("The simulation broke. Something went wrong with the calculation of pf or var.")
+      break;
+    }
+
     if(cov_mc<cov_user){break;}
     if(n_sim>n_max){break;}
   }
 
   cat("\n")
-  duration<-Sys.time()-tic
+  duration<-proc.time()-tic
 
   if(dataRecord){
     range <- 1:k
@@ -121,7 +138,11 @@ MC_CRUDE<-function(lsf,lDistr,cov_user=0.025,n_batch=100,n_max=1e7,use_threads =
       "pf"=data.pf[range],
       "var"=data.var[range],
       "cov"=data.cov[range],
-      "time"=data.time[range]
+      "time.user"=data.time.user[range],
+      "time.sys"=data.time.sys[range],
+      "time.elapsed"=data.time.elapsed[range],
+      "time.user.child"=data.time.user.child[range],
+      "time.user.sys"=data.time.sys.child[range]
     )
   }else{
     df <- data.frame()
@@ -139,7 +160,7 @@ MC_CRUDE<-function(lsf,lDistr,cov_user=0.025,n_batch=100,n_max=1e7,use_threads =
     "n_batch"=n_batch,
     "n_threads"=use_threads,
     "data"=df,
-    "runtime"=duration
+    "runtime"=duration[1:5]
   )
 
   debug.print(debug.level,debug.TAG,c(duration), msg="Crude Monte-Carlo Simulation finished in [s]:  ")

@@ -7,10 +7,10 @@
 MC_CRUDE(
   lsf,
   lDistr,
-  cov_user = 0.025,
-  n_batch = 100,
+  cov_user = 0.05,
+  n_batch = 400,
   n_max = 1e+07,
-  use_threads = 64,
+  use_threads = 6,
   dataRecord = TRUE,
   debug.level = 0
 )
@@ -26,11 +26,11 @@ MC_CRUDE(
 
 \item{n_max}{maximum of iteration the MC should do - its like a stop criterion}
 
-\item{use_threads}{TRUE for parallel computing, false for single core}
+\item{use_threads}{Number of threads for parallel computing, use_threds=1 for single core. Doesnt work on windows!}
 
 \item{dataRecord}{If True all single steps are recorded and available in the results file after on}
 
-\item{debug.level}{If 0 no additional info if 2 high output during calculation}
+\item{debug.level}{If 0 no additional info, if 2 high output during calculation}
 }
 \value{
 The results will be provided within a list with the following objects. Acess them with "$"-accessor

@@ -19,7 +19,7 @@ test_that("FORM and SORM", {
 
   ps <- SYS_PROB(
     sys_input=list(lsf1),
-    probMachines = list(form_rf,sorm)
+    probMachines = list(form_rf,sorm,mcis)
   )
   ps$runMachines()
   ps$beta_single

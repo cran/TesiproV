@@ -10,7 +10,7 @@ MC_IS(
   cov_user = 0.05,
   n_batch = 16,
   n_max = 1e+06,
-  use_threads = 8,
+  use_threads = 6,
   sys_type = "parallel",
   dataRecord = TRUE,
   beta_l = 100,

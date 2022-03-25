@@ -360,7 +360,7 @@ SYS_PROB$methods(
         cat(sprintf("1.2.1.%d Ergebnisse fuer Problem Nr: %d \t-%s\n",i,i,sys_input[[i]]$name))
         for(j in 1:n_machines){
           cat(sprintf("Beta: %.4f\tPf: %f\t",res_single[[i]][[j]]$beta,res_single[[i]][[j]]$pf))
-          cat(sprintf("%s (%s)\t" ,probMachines[[j]]$name, probMachines[[j]]$fCall))
+          cat(sprintf("%s (%s)\n" ,probMachines[[j]]$name, probMachines[[j]]$fCall))
           print(res_single[[i]][[j]]$runtime)
         }
       }

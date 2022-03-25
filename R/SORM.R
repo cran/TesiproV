@@ -28,7 +28,7 @@ SORM <- function(lsf, # the limit-state function.
 
   debug.TAG <- "SORM_RABU"
   debug.print(debug.level,debug.TAG,c(TRUE), msg="SORM started...")
-  tic <- Sys.time()
+  tic <- proc.time()
 
   # Isoprobabilistic transformation to the standard Gaussian space U
   # Tlsf, convenient for users and required by mistral::FORM. AZC-style Tinv could be an alternative, e.g. Tinv <- function(X) { lsf(qnorm(pnorm(X),0.25,1)) }
@@ -90,7 +90,12 @@ SORM <- function(lsf, # the limit-state function.
   A <- A/pracma::Norm(gradient)
 
   # Curvatures (found through the eigenvalues of the reduced matrix A
-  curvatures <- eigen(A[1:nrow(A)-1,1:nrow(A)-1])$values
+  if(!is.nan(A)){
+    curvatures <- eigen(A[1:nrow(A)-1,1:nrow(A)-1])$values
+    warning("No corvature found. Maybe bad designpoints of FORM.")
+  }else{
+    curvatures <- rep(0,length(gradient))
+  }
   if (curvatures >= 1) {warning("FORM did not converge to the design point")}
   debug.print(0,debug.TAG,c("curvatures"),curvatures)
 
@@ -118,7 +123,7 @@ SORM <- function(lsf, # the limit-state function.
 
 
   cat("\n")
-  duration<-Sys.time()-tic
+  duration<-proc.time()-tic
 
   # Return the results
   output <- list(
@@ -132,7 +137,7 @@ SORM <- function(lsf, # the limit-state function.
             "SORMbetaTvedt"=SORMbetaTvedt,
             "SORMpfHB"=SORMpfHB,
             "SORMbetaHB"=SORMbetaHB,
-            "runtime"=duration
+            "runtime"=duration[1:5]
             )
 
   debug.print(debug.level,debug.TAG,c(duration), msg="SORM finished in [s]: ")

@@ -196,13 +196,13 @@ Options:
 ```{r}
 machine <- PROB_MACHINE(name="SORM",fCall="SORM")
 ```
-### MC
+### MCC
 
 Options:
 
 * cov_user=0.025    abort criterion for cov
 * n_max=1e7         abort cirterion for max cycles of evaluation
-* use_threads = 64  amount of threads for parallel computing (1 = single core calculation)
+* use_threads = 6   amount of threads for parallel computing (1 = single core calculation)
 * n_batch=100       evaulations each step
 * dataRecord=TRUE   If true, there is a list() with all the data per calculation step in the result (used for visualization of beta)
 
@@ -215,7 +215,7 @@ Options:
 
 * cov_user=0.025    abort criterion for cov
 * n_max=1e7         abort cirterion for max cycles of evaluation
-* use_threads = 64  amount of threads for parallel computing (1 = single core calculation)
+* use_threads = 6   amount of cores for parallel computing (1 = single core calculation)
 * n_batch=100       evaulations each step
 * dataRecord=TRUE   If true, there is a list() with all the data per calculation step in the result (used for visualization of beta)
 * dps               Vector with designpoints. If empty, they will be calculated via a FORM analysis

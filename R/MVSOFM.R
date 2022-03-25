@@ -18,7 +18,7 @@ MVFOSM <- function(lsf,
 
   debug.TAG <- "MVFOSM"
   debug.print(debug.level,debug.TAG,c(TRUE), msg="Mean Value First Order Second Moment Method started...")
-  tic<-Sys.time()
+  tic<-proc.time()
 
   n_vars <- length(lDistr)
   m <- vector("numeric",n_vars)
@@ -91,7 +91,7 @@ MVFOSM <- function(lsf,
   }
 
   cat("\n")
-  duration<-Sys.time()-tic
+  duration<-proc.time()-tic
 
   output <- list(
     "method"="MVFOSM",
@@ -99,7 +99,7 @@ MVFOSM <- function(lsf,
     "pf"=pf,
     "design.point.x"=designPoint,
     "alpha"=alpha,
-    "runtime"=duration
+    "runtime"=duration[1:5]
   )
 
   debug.print(debug.level,debug.TAG,c(duration), msg="Mean Value First Order Second Moment Method finished in: ")

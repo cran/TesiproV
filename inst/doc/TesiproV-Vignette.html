@@ -261,13 +261,13 @@ The results derived from these methods support a final evaluation of the safety 
 </ul>
 <div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>machine <span class="ot">&lt;-</span> <span class="fu">PROB_MACHINE</span>(<span class="at">name=</span><span class="st">&quot;SORM&quot;</span>,<span class="at">fCall=</span><span class="st">&quot;SORM&quot;</span>)</span></code></pre></div>
 </div>
-<div id="mc" class="section level3">
-<h3>MC</h3>
+<div id="mcc" class="section level3">
+<h3>MCC</h3>
 <p>Options:</p>
 <ul>
 <li>cov_user=0.025 abort criterion for cov</li>
 <li>n_max=1e7 abort cirterion for max cycles of evaluation</li>
-<li>use_threads = 64 amount of threads for parallel computing (1 = single core calculation)</li>
+<li>use_threads = 6 amount of threads for parallel computing (1 = single core calculation)</li>
 <li>n_batch=100 evaulations each step</li>
 <li>dataRecord=TRUE If true, there is a list() with all the data per calculation step in the result (used for visualization of beta)</li>
 </ul>
@@ -279,7 +279,7 @@ The results derived from these methods support a final evaluation of the safety 
 <ul>
 <li>cov_user=0.025 abort criterion for cov</li>
 <li>n_max=1e7 abort cirterion for max cycles of evaluation</li>
-<li>use_threads = 64 amount of threads for parallel computing (1 = single core calculation)</li>
+<li>use_threads = 6 amount of cores for parallel computing (1 = single core calculation)</li>
 <li>n_batch=100 evaulations each step</li>
 <li>dataRecord=TRUE If true, there is a list() with all the data per calculation step in the result (used for visualization of beta)</li>
 <li>dps Vector with designpoints. If empty, they will be calculated via a FORM analysis</li>
