@@ -4,17 +4,32 @@
 \name{PARAM_DETVAR-class}
 \alias{PARAM_DETVAR-class}
 \alias{PARAM_DETVAR}
-\title{Object for parametric deterministic variable}
+\title{Parametric Deterministic Variable (PARAM_DETVAR)}
 \description{
-Object to create parametric deterministic variables
+Like `PROB_DETVAR` but the deterministic value itself can be swept.
+The class inherits from `PROB_BASEVAR` and therefore re-uses the same
+transformation machinery.
 }
 \section{Fields}{
 
 \describe{
-\item{\code{ParamValues}}{A vector of values. The first element goes with the first run, second element with second run and so on.}
+\item{\code{ParamValues}}{Vector of deterministic values that will be assigned
+sequentially in a parametric sweep.}
+
+\item{\code{pos}}{Current index (used internally).}
 }}
 
 
+\examples{
+pdet <- PARAM_DETVAR(
+  Name = "E_mod",
+  ParamValues = c(30e3, 35e3, 40e3)
+)
+pdet$nextParam() # sets Mean = 30.000, Sd = Mean/1e7 and prepares
+pdet$getCurrentParam()
+
+}
 \author{
-(C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

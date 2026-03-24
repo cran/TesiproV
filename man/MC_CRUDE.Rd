@@ -2,55 +2,142 @@
 % Please edit documentation in R/MC_CRUDE.R
 \name{MC_CRUDE}
 \alias{MC_CRUDE}
-\title{Crude MonteCarlo Simulation}
+\title{Crude Monte Carlo Simulation}
 \usage{
 MC_CRUDE(
   lsf,
   lDistr,
   cov_user = 0.05,
-  n_batch = 400,
+  n_batch = 10000,
   n_max = 1e+07,
-  use_threads = 6,
+  use_threads = parallel::detectCores(),
+  backend = c("future", "parallel"),
   dataRecord = TRUE,
-  debug.level = 0
+  debug.level = 0,
+  seed = NULL
 )
 }
 \arguments{
-\item{lsf}{objective function with limit state function in form of function(x) {x[1]+x[2]...}}
+\item{lsf}{Limit-state function. Must follow the LSF interface
+specification described in the "Limit-State Function (LSF) Interface"
+section below.}
 
-\item{lDistr}{list ob distribiutions regarding the distribution object of TesiproV}
+\item{lDistr}{List of distribution objects as returned by \code{PROB_BASEVAR$getlDistr()}.}
 
-\item{cov_user}{The Coefficent of variation the simulation should reach}
+\item{cov_user}{Target coefficient of variation to be achieved.}
 
-\item{n_batch}{Size per batch for parallel computing}
+\item{n_batch}{Batch size per iteration (used for parallel computation).}
 
-\item{n_max}{maximum of iteration the MC should do - its like a stop criterion}
+\item{n_max}{Maximum number of Monte Carlo samples (stopping criterion).}
 
-\item{use_threads}{Number of threads for parallel computing, use_threds=1 for single core. Doesnt work on windows!}
+\item{use_threads}{Number of parallel threads. Set to 1 for single-core
+execution. Parallel execution is not supported on Windows.}
 
-\item{dataRecord}{If True all single steps are recorded and available in the results file after on}
+\item{backend}{Parallel backend, either \code{"future"} (default) or \code{"parallel"}.}
 
-\item{debug.level}{If 0 no additional info, if 2 high output during calculation}
+\item{dataRecord}{Logical; if \code{TRUE}, intermediate results are recorded.}
+
+\item{debug.level}{Integer controlling verbosity (0 = silent, 2 = detailed output).}
+
+\item{seed}{Optional integer value for reproducible random numbers.}
 }
 \value{
-The results will be provided within a list with the following objects. Acess them with "$"-accessor
-
-pf probablity of failure
-
-pf_FORM probablity of failure of the FORM Algorithm
-
-var variation
-
-cov_mc coefficent of the monteCarlo
-
-n_mc number of iterations done
+MC_CRUDE returns an object containing the following elements:
+\itemize{
+  \item \code{method}: Character string identifying the method ("MCC").
+  \item \code{beta}: Estimated reliability index \eqn{\beta = -\Phi^{-1}(p_f)}.
+  \item \code{pf}: Estimated probability of failure.
+  \item \code{var}: Estimated variance of the Monte Carlo estimator.
+  \item \code{cov_mc}: Estimated coefficient of variation of \code{pf}.
+  \item \code{cov_user}: Target coefficient of variation specified by the user.
+  \item \code{n_mc}: Total number of Monte Carlo samples generated.
+  \item \code{n_max}: Maximum allowed number of samples.
+  \item \code{n_batch}: Batch size per iteration.
+  \item \code{n_threads}: Number of threads used.
+  \item \code{runtime}: CPU time returned by \code{proc.time()}.
+  \item \code{data}: Optional data frame containing intermediate results
+        (only if \code{dataRecord = TRUE}).
+}
 }
 \description{
-Method to calculate failure probability for structural engineering
+Crude Monte Carlo simulation (MC_CRUDE) method for the estimation of failure
+probabilities in structural reliability analysis.
+
+The crude Monte Carlo method estimates the probability of failure
+by direct sampling of the basic random variables and evaluation
+of the limit-state function.
+
+The failure probability is estimated as
+\deqn{
+  \hat{p}_f = \frac{1}{N}
+  \sum_{i=1}^{N}
+  \mathbf{1}_{\{g(\mathbf{X}_i) \le 0\}}.
 }
+
+Although conceptually simple and unbiased, the method becomes
+computationally inefficient for very small failure probabilities,
+as a large number of samples is required to obtain stable estimates.
+}
+\section{Limit-State Function (LSF) Interface}{
+
+
+The argument \code{lsf} must define a valid limit-state function
+using one of the following supported signatures:
+
+\describe{
+  \item{\code{function(x)}}{
+    A single numeric vector \code{x} containing all basic variables
+    in the order defined in \code{lDistr}.
+
+    Example:
+    \preformatted{
+    lsf <- function(x) {
+      x[1] - sum((x[-1]^2) / seq_along(x)[-1])
+    }
+    }
+  }
+
+  \item{\code{function(Z, Fy, M, ...)}}{
+    Explicitly named scalar arguments corresponding to the variable
+    names defined in the probabilistic model.
+
+    Example:
+    \preformatted{
+    lsf <- function(Z, Fy, M) {
+      Z * Fy - M
+    }
+    }
+  }
+}
+
+The following form is \strong{not supported}:
+
+\preformatted{
+function(...)
+}
+
+Using \code{...} as the sole argument may lead to inconsistent
+behaviour across different reliability algorithms and is therefore
+prohibited.
+
+For maximum robustness and cross-method compatibility,
+the vector form \code{function(x)} is recommended.
+}
+
+\section{Windows users}{
+
+
+On Windows systems, it is recommended to use
+\code{backend = "future"} for multi-core parallelization.
+The \code{"parallel"} backend does not support forking on Windows.
+}
+
 \references{
-Spaethe, G.: Die Sicherheit tragender Baukonstruktionen, 2. Aufl. Wien: Springer, 1991. – ISBN 3-211-82348-4
+Spaethe, G. (1991).
+\emph{Die Sicherheit tragender Baukonstruktionen}.
+Springer.'
 }
 \author{
-(C) 2021 - M. Ricker, K. Nille-Hauf, T. Feiri - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

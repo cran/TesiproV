@@ -1,0 +1,1 @@
+testthat::local_edition(3)

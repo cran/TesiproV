@@ -2,7 +2,7 @@
 % Please edit documentation in R/FORM.R
 \name{FORM}
 \alias{FORM}
-\title{First Order Reliablity Method}
+\title{First-Order Reliability Method (FORM)}
 \usage{
 FORM(
   lsf,
@@ -14,43 +14,53 @@ FORM(
 )
 }
 \arguments{
-\item{lsf}{objective function with limit state function in form of \code{function(R,E) {R-E}}. Supplied by a SYS_ object, do not supply yourself.}
+\item{lsf}{Objective function representing the limit-state, e.g. \code{function(R,E){R-E}}.
+Supplied automatically by a SYS_ object - do not provide manually.}
 
-\item{lDistr}{list ob distribiutions regarding the distribution object of TesiproV. Supplied by a SYS_ object, do not supply yourself.}
+\item{lDistr}{List of distribution objects created by TesiproV. Supplied automatically by
+a SYS_ object - do not provide manually.}
 
-\item{n_optim}{number of opimaziationcycles (not recommended/need for lagrangian algorithms).}
+\item{n_optim}{Number of optimization cycles (not required for Lagrangian algorithms).}
 
-\item{loctol}{Tolerance of the local solver algorithm}
+\item{loctol}{Local tolerance for convergence of the solver algorithm.}
 
-\item{optim_type}{Optimaziationtypes. Available: Augmented Lagrangian Algorithm (use: "auglag"),
-Rackwitz-Fissler Algorithm (use: "rackfies").}
+\item{optim_type}{Optimization type: `"auglag"` (Augmented Lagrangian) or `"rackfies"`
+(Rackwitz-Fiessler iterative scheme).}
 
-\item{debug.level}{If 0 no additional info if 2 high output during calculation}
+\item{debug.level}{Verbosity level: 0 = silent, 1 = basic info, 2 = detailed output.}
 }
 \value{
-The results will be provided within a list with the following objects.
-
-beta HasoferLind Beta Index
-
-pf probablity of failure
-
-u_points solution points
-
-dy gradients
+A list containing:
+  * `beta` - Hasofer-Lind reliability index
+  * `pf` - probability of failure
+  * `x_points` - design point in physical space
+  * `dy` - gradient vector at design point
 }
 \description{
-Method to calculate failure probability for structural engineering using approximation of limit state function
-with linear part.
+First-Order Reliability Method (FORM) for the approximation
+of failure probabilities in structural reliability analysis.
+
+The FORM estimates the probability of failure by transforming
+the basic random variables into standard normal space
+and approximating the limit-state function by a first-order
+(linear) Taylor expansion at the design point.
+
+The reliability index is defined as the minimum distance
+from the origin to the limit-state surface in standard normal space.
+The probability of failure is then approximated using
+the standard normal cumulative distribution function.
 }
 \references{
-HASOFER AM, LIND NC. An exact and invarient first order reliability format. J Eng Mech Div Proc ASCE 1974;100(1):111–21.
+Hasofer, A. M., & Lind, N. C. (1974).
+An exact and invariant first-order reliability format.
+\emph{Journal of the Engineering Mechanics Division, ASCE},
+100(1), 111-121.
 
-Rackwitz-Fiessler: RACKWITZ R., FIESSLER B. Structural reliability under combined random load sequences. Comput Struct 1978;9(5), S. 489–94.
-
-Optimised algorithm: YPMA, J., JOHNSON, S.G., BORCHERS, H.W., EDDELBUETTEL, D., RIPLEY, B., HORNIK K., CHIQUET, J., ADLER, A., nloptr: R Interface to NLopt. R package. 2020. Version 1.2.2.
-
-Spaethe, G.: Die Sicherheit tragender Baukonstruktionen, 2. Aufl. Wien: Springer, 1991. – ISBN 3-211-82348-4
+Rackwitz, R., & Fieszler, B. (1978).
+Structural reliability under combined random load sequences.
+\emph{Computers & Structures}, 9(5), 489-494.
 }
 \author{
-(C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, J.P. Schulze-Ardey, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

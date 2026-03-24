@@ -1,9 +1,17 @@
-# Reliability Analysis at Biberach University of applied sciences
-# Subset Simulation for reliability analysis
-# (c) adapted from: S. Marelli, and B. Sudret, UQLab: A framework for uncertainty quantification in Matlab, Proc. 2nd Int. Conf. on Vulnerability, Risk Analysis and Management (ICVRAM2014), Liverpool (United Kingdom), 2014, 2554-2563.
-#' @title MonteCarlo with Subset-Sampling
-#'
 #' @name MC_SubSam
+#' @title Monte Carlo Simulation with Subset-Sampling
+#' @description
+#' MonteCarlo with Subset-Sampling (MC_SubSam) method for the
+#' estimation of small failure probabilities in structural reliability analysis.
+#'
+#' Subset Simulation is an advanced Monte Carlo technique that
+#' expresses a rare failure event as a sequence of intermediate
+#' conditional events with higher probabilities.
+#'
+#' The method combines conditional sampling with Markov Chain Monte Carlo (MCMC)
+#' techniques to efficiently estimate very small probabilities of failure,
+#' which would be computationally expensive to obtain using crude Monte Carlo simulation.
+#'
 #'
 #' @param lsf limit-state function
 #' @param lDistr list of basevariables in input space
@@ -13,20 +21,36 @@
 #' @param Alpha  confidence level
 #' @param variance gaussian, uniform
 #' @param debug.level If 0 no additional info if 2 high output during calculation
+#' @param seed Optional integer value. If specified, sets a fixed seed for reproducible random numbers (useful for testing).
 #'
-#' @return The results are provided within a list() of the following elements:
-#' @return beta
-#' @return pf
-#' @return betaCI and pfCI are the corresponding confidence intervals
-#' @return CoV COV of the result
-#' @return NumOfSubsets Amount of Markov-Chains
-#' @return NumOfEvalLSF_nom Markov-Chains times Iterations
-#' @return NumOfEvalLSF_eff Internal counter that shows the real evaluations of the lsf
-#' @return runtime Duration since start to finish of the function
+#' @return MC_SubSam returns an object containing the following elements:
+#' \itemize{
+#'   \item \code{beta}: Estimated reliability index.
+#'   \item \code{pf}: Estimated probability of failure.
+#'   \item \code{betaCI}: Confidence interval of the reliability index.
+#'   \item \code{pfCI}: Confidence interval of the probability of failure.
+#'   \item \code{CoV}: Coefficient of variation of the estimator.
+#'   \item \code{NumOfSubsets}: Number of Markov chains (subsets).
+#'   \item \code{NumOfEvalLSF_nom}: Nominal number of limit-state function evaluations
+#'         (Markov chains / iterations).
+#'   \item \code{NumOfEvalLSF_eff}: Effective number of limit-state function evaluations.
+#'   \item \code{runtime}: Total runtime of the function.
+#' }
 #'
-#' @references AU, S. K. & BECK, J. L. Estimation of small failure probabilities in high dimensions by subset simulation. Probabilistic Engineering Mechanics, 2001, 16.4: 263-277.
+#' @references
+#' Au, S. K., & Beck, J. L. (2001).
+#' Estimation of small failure probabilities in high dimensions
+#' by subset simulation.
+#' \emph{Probabilistic Engineering Mechanics}, 16(4), 263-277.
 #'
-#' @author (C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+#' Marelli, S., & Sudret, B. (2014).
+#' UQLab: A framework for uncertainty quantification in Matlab.
+#' In \emph{Proceedings of the 2nd International Conference on
+#' Vulnerability, Risk Analysis and Management (ICVRAM2014)},
+#' Liverpool, United Kingdom, 2554-2563.
+#'
+#' @author (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+#' TU Dortmund University - Chair of Structural Concrete (since 2023)
 #' @import pracma
 #' @export
 
@@ -37,8 +61,17 @@ MC_SubSam <- function(lsf, # limit-state function
                         MaxSubsets=10, # maximum number of simulation levels that are used to terminate the simulation procedure to avoid infinite loop when the target domain cannot be reached
                         Alpha=0.05, # confidence level
                         variance="uniform",
-                        debug.level=0) # gaussian, uniform
+                        debug.level=0, # gaussian, uniform
+                        seed = NULL) # seed for random number generator
 {
+
+  # set seed for random number generator Mersenne Twister
+  if (!is.null(seed)) {
+    set.seed(seed)
+    message(sprintf("Fixed RNG seed set to %d", seed))
+  }
+
+  RNGkind("Mersenne-Twister", "Inversion")
 
   debug.TAG <- "MC_SUS"
   debug.print(debug.level,debug.TAG,c(TRUE), msg="Monte-Carlo Simulation with Subset Sampling started...")
@@ -176,7 +209,7 @@ MC_SubSam <- function(lsf, # limit-state function
 
       loc_pf <- p0^(ii-1)*Pf[length(Pf)] # Probability of failure
       loc_beta <- -stats::qnorm(loc_pf)
-      info.print(debug.TAG,c("ii","Beta","pf"),c(ii,loc_beta, loc_pf))
+      info.print(debug.TAG,debug.level,c("ii","Beta","pf"),c(ii,loc_beta, loc_pf))
     }
 
     U <- rbind(Q,Xsample[1:(Nsubset-nrow(Q)),])

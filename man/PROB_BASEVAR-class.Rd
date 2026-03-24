@@ -4,51 +4,74 @@
 \name{PROB_BASEVAR-class}
 \alias{PROB_BASEVAR-class}
 \alias{PROB_BASEVAR}
-\title{Object to store the distribution model for base vars}
+\title{Object to store the distribution model for basic variables (PROB_BASEVAR)}
 \description{
-Object to store the distribution model for base vars...
+Stores the distribution model for a basic random variable that can be used
+in any limit-state function.  The class knows how to transform between
+*mean / standard deviation* and the native distribution parameters.
+}
+\details{
+The method `prepare()` calculates missing parameters and checks for consistency.
+`getlDistr()` returns a list containing *four* functions (`d`, `p`, `q`, `r`)
+together with meta-information; the result is cached to avoid repeated
+`loadNamespace()` calls.
 }
 \section{Fields}{
 
 \describe{
-\item{\code{Id}}{Place in vector of objective functional expression function(x){x[id]}}
+\item{\code{Id}}{Integer identifier (position inside the LSF vector).}
 
-\item{\code{Name}}{name like f_ck, used in the limit state function as input name}
+\item{\code{Name}}{Human-readable name (e.g. `"f_ck"`).}
 
-\item{\code{Description}}{Used for better understanding of vars}
+\item{\code{Description}}{Short textual description.}
 
-\item{\code{DistributionType}}{Distributiontypes like "norm", "lnorm", "weibull", "t", "gamma", etc...}
+\item{\code{DistributionType}}{Distribution identifier (`"norm"`, `"lnorm"`, `"slnorm"`, `"gumbel"`,
+`"gamma"`, `"exp"`, `"beta"`, `"st"`, `"binom"`,`"emp"`,
+`"unif"`, `"weibull"`, `"lt"`).}
 
-\item{\code{Package}}{The name of the package the Distribution should be taken from (e.g. "evd")}
+\item{\code{Mean}}{Mean value of the variable.}
 
-\item{\code{Mean}}{The Mean Value of this Basisvariable}
+\item{\code{Sd}}{Standard deviation.}
 
-\item{\code{Sd}}{The SD Value of this Basisvariable}
+\item{\code{Cov}}{Coefficient of variation (`Sd / Mean`).}
 
-\item{\code{Cov}}{The Cov fitting to Mean and Sd.}
+\item{\code{x0}}{Shifting parameter (used for shifted log-normal distribution `"slnorm"`).}
 
-\item{\code{x0}}{Shiftingparameter}
+\item{\code{Package}}{Name of the R package that provides the density
+functions (`"stats"`, `"evd"`, `"EnvStats"` or `"brms"`).}
 
-\item{\code{DistributionParameters}}{Inputparameters of the distribution, may be calculated internally}
+\item{\code{DistributionParameters}}{Numeric vector with the *native* distribution
+parameters (e.g. `c(mu, sigma)` for a normal).}
+
+\item{\code{.cache}}{Private environment that stores cached density
+functions (used internally, **do not** access
+from user code).}
 }}
 
 \section{Methods}{
 
 \describe{
-\item{\code{prepare()}}{Runs the transformations (from mean, sd -> parameters or the other way round) and checks COV, MEAN and SD fitting together.
-If distribution is not available an error ll be thrown.}
+\item{\code{prepare()}}{Performs transformations between mean/sd and distribution parameters.
+Ensures that Mean, Sd and Cov are consistent and valid.}
 }}
 
 \examples{
-var1 <- PROB_BASEVAR(Name="var1", Description="yield strength",
-DistributionType="norm", Mean=500, Sd=60)
+## Normal random variable --------------------------------------------------
+var1 <- PROB_BASEVAR(
+  Name = "f_ck", DistributionType = "norm",
+  Mean = 30, Sd = 1
+)
 var1$prepare()
 
-var2 <- PROB_BASEVAR(Name="var2", Description="Load",
-DistributionType="gumbel",Package="evd",Mean=40, Sd=3)
+## Gumbel random variable (package `evd`) ----------------------------------
+var2 <- PROB_BASEVAR(
+  Name = "M", DistributionType = "gumbel",
+  Package = "evd", Mean = 2000, Sd = 200
+)
 var2$prepare()
 
 }
 \author{
-(C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

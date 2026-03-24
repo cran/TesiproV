@@ -4,20 +4,129 @@
 \name{SYS_PROB-class}
 \alias{SYS_PROB-class}
 \alias{SYS_PROB}
-\title{System Probabliation Solution Object}
+\title{System Probability Solution Object (SYS_PROB)}
 \description{
-Object to create probabilistic problems. Including Equation, List of Basisvariable, and Solutionmachines
+The \code{SYS_PROB} class represents a probabilistic system
+consisting of one or more limit-state functions (\code{SYS_LSF})
+and a set of reliability algorithms (\code{PROB_MACHINE}).
+
+It allows the execution of reliability analyses for
+serial or parallel systems, aggregation of single
+limit-state results, and system-level probability evaluation.
+
+Each limit-state function may include multiple random variables
+(\code{PROB_BASEVAR}) with different probability distributions.
+The transformation between mean/standard deviation and the
+native distribution parameters is handled automatically.
+
+\itemize{
+
+  \item Normal ("norm"):
+  mean = \eqn{\mu}, standard deviation = \eqn{\sigma}.
+  Parameters: mean, sd.
+
+  \item Lognormal ("lnorm"):
+  defined by mean \eqn{m} and sd \eqn{s}.
+  Parameters:
+  \eqn{\mu = \log\left( \frac{m}{\sqrt{1 + (s/m)^2}} \right)},
+  \eqn{\sigma = \sqrt{ \log\left( 1 + (s/m)^2 \right) }}.
+
+  \item shifted Lognormal ("slnorm"):
+  defined by Mean \eqn{m}, Sd \eqn{s} and \eqn{x0}.
+  Parameters:
+  \eqn{\mu = \log\left( \frac{m-x0}{\sqrt{1 + (s/(m-x0))^2}} \right)},
+  \eqn{\sigma = \sqrt{ \log\left( 1 + (s/(m-x0))^2 \right) }}.
+
+  \item Gumbel ("gumbel", package "evd"):
+  location-scale type I extreme value distribution.
+  Parameters:
+  location = \eqn{\mu - \gamma \cdot \beta},
+  where \eqn{\gamma} is the Euler-Mascheroni constant,
+  and
+  \eqn{\beta = \frac{\sigma \sqrt{6}}{\pi}}.
+
+  \item Gamma ("gamma"):
+  shape-scale parameterization.
+  Parameters:
+  \eqn{k = \frac{\mu^2}{\sigma^2}},
+  \eqn{\theta = \frac{\sigma^2}{\mu}}.
+
+  \item Exponential ("exp"):
+  rate \eqn{\lambda} or scale \eqn{\theta = 1/\lambda}.
+  Parameter:
+  \eqn{\lambda = 1/\mu}.
+
+  \item Beta ("beta"):
+  bounded on \eqn{[0,1]}.
+  Parameters:
+  \eqn{\alpha = \mu t},
+  \eqn{\beta = (1 - \mu) t},
+  with
+  \eqn{t = \frac{\mu (1-\mu)}{\sigma^2} - 1}.
+
+  \item Weibull ("weibull"):
+  shape \eqn{k} and scale \eqn{\lambda}.
+  Parameters:
+  empirical approximation
+  \eqn{k \approx \left( \frac{\sigma}{\mu} \right)^{-1.086}},
+  \eqn{\lambda = \frac{\mu}{\Gamma\left(1 + \frac{1}{k}\right)}}.
+
+  \item Empirical ("emp"):
+  non-parametric distribution defined by observed sample.
+  Parameter: \code{obs} = numeric vector of observations.
+  The empirical CDF is constructed from the ordered sample.
+  Duplicate values are allowed but may trigger a warning.
+
+  \item Student t ("st"):
+  marginal density of a normal-gamma model describing uncertainty
+  in \eqn{\mu} and \eqn{\sigma}.
+  Hyperparameters:
+  \eqn{(m, s, n, \nu)}.
+
+  \item Log-Student t ("lt"):
+  marginal density of a log-normal-gamma model describing uncertainty
+  in \eqn{\mu} and \eqn{\sigma}.
+  Hyperparameters:
+  \eqn{(m, s, n, \nu)}.
+}
+
+The types `"binom"` and `"unif"` are reserved for future extensions.
+The package automatically checks consistency between mean, standard deviation and coefficient of variation.
+
+Methods available in this class:
+
+* `$runMachines()` - executes all solution algorithms for each limit state function.
+* `$calculateSystemProbability()` - computes system reliability using bounds or Monte Carlo based methods (`MC_IS`, `MC_CRUDE`, `MC_SubSam`).
+* `$printResults()` - prints a detailed report to console or file.
+* `$saveProject(level)` - saves results at different detail levels.
+* `$plotGraph(plotType)` - experimental plotting routine for simulation performance.
+}
+\details{
+The class is built on \code{setRefClass} and therefore uses mutable fields.
+All objects (`PROB_BASEVAR`, `SYS_LSF`, ...) are expected to be already
+**checked** (via the `check()` method) before they are passed to `SYS_PROB`.
 }
 \section{Fields}{
 
 \describe{
-\item{\code{sys_input}}{List of SYS_LSFs}
+\item{\code{sys_input}}{List of `SYS_LSF` objects - the individual limit-state functions.}
 
-\item{\code{sys_type}}{determining serial or parallel system, not implemented yet}
+\item{\code{sys_type}}{Character string that defines whether the system
+is *serial* or *parallel* (not yet implemented).}
 
-\item{\code{probMachines}}{list of PROB_MACHINES}
+\item{\code{probMachines}}{List of `PROB_MACHINE` objects - the analysis methods.}
 
-\item{\code{res_single}}{grab results after .runMachines()}
+\item{\code{res_single}}{List of results per machine for each limit-state function.}
+
+\item{\code{res_sys}}{List of results for the system-level reliability calculation.}
+
+\item{\code{beta_single}}{Matrix of \eqn{\beta}-values obtained from the single-problem analyses.}
+
+\item{\code{beta_sys}}{Matrix of \eqn{\beta}-values obtained from the system reliability calculations.}
+
+\item{\code{params_sys}}{List that stores the parameter sets used in Monte-Carlo runs.}
+
+\item{\code{debug.level}}{Numeric verbosity level (0 = silent, 1 = basic, 2 = detailed).}
 }}
 
 \section{Methods}{
@@ -35,7 +144,8 @@ You can pass arguments to methods via the params field, while the argument has t
 \item{\code{printResults(path = "")}}{TesiproV can create a report file with all the necessary data for you. If you provide a path (or filename, without ending) it will store
 the data there, otherwise it will report to the console. Set the path via setwd() or check it via getwd().}
 
-\item{\code{runMachines()}}{Starts solving all given problems (sys_input) with all given algorithms (probMachines). After that one can access via $res...1}
+\item{\code{runMachines()}}{Starts solving all given problems (sys_input) with all given algorithms (probMachines).
+First checks that all analysis methods are loaded before validating limit-state functions.}
 
 \item{\code{saveProject(level, filename = "tesiprov_project")}}{You can save your calculation project with saveProject().
 There are four different levels of detail to save
@@ -47,18 +157,20 @@ There are four different levels of detail to save
 
 \examples{
 ps <- SYS_PROB(
-sys_input=list(SYS_LSF(),SYS_LSF()),
-probMachines=list(PROB_MACHINE()),
-sys_type="serial")
+  sys_input = list(SYS_LSF(), SYS_LSF()),
+  probMachines = list(PROB_MACHINE()),
+  sys_type = "serial"
+)
 \dontrun{
 ps$runMachines()
 ps$beta_sys
 ps$res_sys
 ps$printResults("example_1")
-ps$saveProject(4,"example_1")
+ps$saveProject(4, "example_1")
 }
 
 }
 \author{
-(C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

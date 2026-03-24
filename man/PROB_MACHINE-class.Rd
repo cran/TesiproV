@@ -4,22 +4,48 @@
 \name{PROB_MACHINE-class}
 \alias{PROB_MACHINE-class}
 \alias{PROB_MACHINE}
-\title{Object to store prob machines}
+\title{Reliability Algorithm (PROB_MACHINE)}
 \description{
-Object to store prob machines
+Stores the definition of a reliability method (FORM, SORM, Monte-Carlo,
+etc.) that can be executed by `SYS_PROB` or `SYS_PARAM`.  The actual
+algorithm is called via the character string `fCall` (e.g. `"FORM"` or
+`"MC_IS"`).  Optional arguments are passed through the list `options`.
+}
+\details{
+The helper method `getMethodLevel()` returns an integer that indicates
+the *complexity* of the method (1 = first-order, 2 = second-order, 3 = Monte-Carlo).
 }
 \section{Fields}{
 
 \describe{
-\item{\code{name}}{individual name}
+\item{\code{name}}{Descriptive name of the machine (appears in reports).}
 
-\item{\code{fCall}}{Function Call of the method. Possible is: "MVFOSM","FORM", "SORM", "MC_Crude", "MC_IS", "MC_SubSam"}
+\item{\code{fCall}}{Function name that implements the algorithm (must be
+available in the package namespace, e.g. `FORM`,
+`SORM`, `MC_CRUDE`, `MC_IS`, `MC_SubSam`).}
 
-\item{\code{options}}{additional options for the method provided as a list. For form e.g. options=list("optim_type"="rackfies").
-To get insight of all available settings of each method open the help with ?FORM, ?SORM, ?MC_IS etc.}
+\item{\code{options}}{Additional options for the algorithm (list, e.g.
+`list(n_max = 1e6, cov_user = 0.05)`).}
 }}
 
 
+\examples{
+## FORM machine ------------------------------------------------------------
+form_rf <- PROB_MACHINE(
+  name = "FORM - Rack-Fies",
+  fCall = "FORM",
+  options = list(n_optim = 20, loctol = 1e-3, optim_type = "rackfies")
+)
+
+## Monte-Carlo importance sampling -----------------------------------------
+mcis <- PROB_MACHINE(
+  name = "MC-IS",
+  fCall = "MC_IS",
+  options = list(cov_user = 0.05, n_max = 3e5, seed = 1234)
+)
+
+}
 \author{
-(C) 2021 - M. Ricker, K. Nille-Hauf, T. Feiri - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

@@ -4,31 +4,36 @@
 \name{PROB_DETVAR-class}
 \alias{PROB_DETVAR-class}
 \alias{PROB_DETVAR}
-\title{Object to store a deterministic model for base vars}
+\title{Object to store a deterministic parameters (PROB_DETVAR)}
 \description{
-Object to store a deterministic model for base vars
+A convenience subclass of `PROB_BASEVAR` that represents a deterministic
+value (i.e. a variable with practically zero variance).  The object is
+automatically converted to a normal distribution with an infinitesimal
+standard deviation (`Sd = Mean / 1e7`).
 }
-\section{Fields}{
+
+\section{Inherited fields}{
 
 \describe{
-\item{\code{Id}}{Place in vector of objective functional expression function(x){x[id]}}
+Inherits all fields of `PROB_BASEVAR` (see that documentation for a full list).
+}
+}
 
-\item{\code{Name}}{readable name like f_ck, used for transform expression to objective function}
+\section{Additional fields}{
 
-\item{\code{Description}}{- Used for better understanding of vars}
-
-\item{\code{Value}}{- The deterministic value that sould be used (as mean for the normal distribution with infinite small sd)}
-}}
-
+\describe{
+  \item{\code{Value}}{
+    The deterministic value used internally as \code{Mean}.
+  }
+}
+}
 
 \examples{
-form_rf<-PROB_MACHINE(name="FORM RF",fCall="FORM",options=list("n_optim"=20,
-"loctol"=0.001, "optim_type"="rackfies"))
-sorm <- PROB_MACHINE(name="SORM",fCall="SORM")
-mcis<-PROB_MACHINE(name="MC IS",fCall="MC_IS",options=list("cov_user" = 0.05, "n_max"=300000))
-mcsus<-PROB_MACHINE(name="MC SuS",fCall="MC_SubSam")
+det <- PROB_DETVAR(Name = "E_mod", Value = 30e3)
+det$prepare()
 
 }
 \author{
-(C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

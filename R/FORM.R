@@ -1,58 +1,92 @@
 #' @name FORM
-#' @title First Order Reliablity Method
-#' @description Method to calculate failure probability for structural engineering using approximation of limit state function
-#' with linear part.
-#' @param lsf objective function with limit state function in form of \code{function(R,E) {R-E}}. Supplied by a SYS_ object, do not supply yourself.
-#' @param lDistr list ob distribiutions regarding the distribution object of TesiproV. Supplied by a SYS_ object, do not supply yourself.
-#' @param n_optim number of opimaziationcycles (not recommended/need for lagrangian algorithms).
-#' @param loctol Tolerance of the local solver algorithm
-#' @param optim_type Optimaziationtypes. Available: Augmented Lagrangian Algorithm (use: "auglag"),
-#' Rackwitz-Fissler Algorithm (use: "rackfies").
-#' @param debug.level If 0 no additional info if 2 high output during calculation
+#' @title First-Order Reliability Method (FORM)
+#' @description
+#' First-Order Reliability Method (FORM) for the approximation
+#' of failure probabilities in structural reliability analysis.
 #'
-#' @return The results will be provided within a list with the following objects.
-#' @return beta HasoferLind Beta Index
-#' @return pf probablity of failure
-#' @return u_points solution points
-#' @return dy gradients
+#' The FORM estimates the probability of failure by transforming
+#' the basic random variables into standard normal space
+#' and approximating the limit-state function by a first-order
+#' (linear) Taylor expansion at the design point.
 #'
+#' The reliability index is defined as the minimum distance
+#' from the origin to the limit-state surface in standard normal space.
+#' The probability of failure is then approximated using
+#' the standard normal cumulative distribution function.
 #'
-#' @references HASOFER AM, LIND NC. An exact and invarient first order reliability format. J Eng Mech Div Proc ASCE 1974;100(1):111–21.
-#' @references Rackwitz-Fiessler: RACKWITZ R., FIESSLER B. Structural reliability under combined random load sequences. Comput Struct 1978;9(5), S. 489–94.
-#' @references Optimised algorithm: YPMA, J., JOHNSON, S.G., BORCHERS, H.W., EDDELBUETTEL, D., RIPLEY, B., HORNIK K., CHIQUET, J., ADLER, A., nloptr: R Interface to NLopt. R package. 2020. Version 1.2.2.
-#' @references Spaethe, G.: Die Sicherheit tragender Baukonstruktionen, 2. Aufl. Wien: Springer, 1991. – ISBN 3-211-82348-4
+#' @param lsf Objective function representing the limit-state, e.g. \code{function(R,E){R-E}}.
+#'   Supplied automatically by a SYS_ object - do not provide manually.
+#' @param lDistr List of distribution objects created by TesiproV. Supplied automatically by
+#'   a SYS_ object - do not provide manually.
+#' @param n_optim Number of optimization cycles (not required for Lagrangian algorithms).
+#' @param loctol Local tolerance for convergence of the solver algorithm.
+#' @param optim_type Optimization type: `"auglag"` (Augmented Lagrangian) or `"rackfies"`
+#'   (Rackwitz-Fiessler iterative scheme).
+#' @param debug.level Verbosity level: 0 = silent, 1 = basic info, 2 = detailed output.
+#'
+#' @return A list containing:
+#'   * `beta` - Hasofer-Lind reliability index
+#'   * `pf` - probability of failure
+#'   * `x_points` - design point in physical space
+#'   * `dy` - gradient vector at design point
+#'
+#' @references
+#' Hasofer, A. M., & Lind, N. C. (1974).
+#' An exact and invariant first-order reliability format.
+#' \emph{Journal of the Engineering Mechanics Division, ASCE},
+#' 100(1), 111-121.
+#'
+#' Rackwitz, R., & Fieszler, B. (1978).
+#' Structural reliability under combined random load sequences.
+#' \emph{Computers & Structures}, 9(5), 489-494.
+#'
 #' @import nloptr
-#' @import pracma
-#' @author (C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+#'
+#' @author (C) 2021-2026 K. Nille-Hauf, J.P. Schulze-Ardey, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+#' TU Dortmund University - Chair of Structural Concrete (since 2023)
 #' @export
 #'
-FORM<-function(lsf,lDistr,n_optim=10,loctol=1e-2,optim_type="rackfies",debug.level=0){
-
+#'
+FORM <- function(lsf, lDistr, n_optim = 10, loctol = 1e-2, optim_type = "rackfies", debug.level = 0) {
   debug.TAG <- "FORM_OP"
-  debug.print(debug.level,debug.TAG,c(optim_type), msg="FORM Algorithm started with Solvingtype:")
-  tic<-proc.time()
+  debug.print(debug.level, debug.TAG, c(optim_type), msg = "FORM Algorithm started with Solvingtype:")
+  tic <- proc.time()
+
+  # options(error = recover)
+
+  ## message("[DEBUG] typeof(lsf)=", typeof(lsf))
+  ## message("[DEBUG] is.function(lsf)=", is.function(lsf))
+  ## message("[DEBUG] class(lsf)=", paste(class(lsf), collapse = ","))
+
+  # --- Default settings -------------------------------------------------
+  if (is.null(loctol) || is.na(loctol)) loctol <- 1e-4
+  if (is.null(n_optim) || is.na(n_optim)) n_optim <- 20L
+
+  # Local control variables ----------------------------------------------
+  n_sim <- 0L # iteration counter
+  delta_x <- Inf
 
   n_vars <- length(lDistr)
 
-  # transformation between normal domain to standard normal distributed space (gaussian domain)
-  gausTrans <- function(a, toGaussian=TRUE){
-    x<-vector(length=n_vars)
-    y<-vector(length=n_vars)
-    b<-vector(length=n_vars)
+  # --- Transformation between physical and standard Gaussian domains ------------#
+  gausTrans <- function(a, toGaussian = TRUE) {
+    x <- vector(length = n_vars)
+    y <- vector(length = n_vars)
+    b <- vector(length = n_vars)
 
-    if(toGaussian){
-      #Entspricht Y zu X
-      y<-a
-      for(i in 1:n_vars){
-        p <- stats::pnorm(y[i])-(1E-12)
-        b[i]<- lDistr[[i]][[1]]$q(p)
+    if (toGaussian) {
+      # Entspricht Y zu X
+      y <- a
+      for (i in 1:n_vars) {
+        p <- pmin(pmax(stats::pnorm(y[i]), 1e-12), 1 - 1e-12)
+        b[i] <- lDistr[[i]][[1]]$q(p)
       }
-    }else{
-      #Entspricht X zu Y
-      x<-a
-      for(i in 1:n_vars){
-        x_ <- x[i] - lDistr[[i]][[1]]$X0
-        b[i]<-stats::qnorm(lDistr[[i]][[1]]$p(x_))
+    } else {
+      # Entspricht X zu Y
+      x <- a
+      for (i in 1:n_vars) {
+        x_ <- x[i]
+        b[i] <- stats::qnorm(lDistr[[i]][[1]]$p(x_))
       }
     }
     return(b)
@@ -60,152 +94,228 @@ FORM<-function(lsf,lDistr,n_optim=10,loctol=1e-2,optim_type="rackfies",debug.lev
 
 
   # lsf in gaussian domain
-  h<-function(y){
-    return(lsf(gausTrans(y,TRUE)))
+  h <- function(y) {
+    return(lsf(gausTrans(y, TRUE)))
   }
 
 
-  beta<-vector("numeric",n_optim)
-  par_u<-matrix(ncol = n_vars,nrow = n_optim)
-  par_x<-matrix(ncol = n_vars,nrow = n_optim)
-  dy<-matrix(ncol = n_vars,nrow = n_optim)
+  beta <- vector("numeric", n_optim)
+  par_u <- matrix(ncol = n_vars, nrow = n_optim)
+  par_x <- matrix(ncol = n_vars, nrow = n_optim)
+  dy <- matrix(ncol = n_vars, nrow = n_optim)
 
 
+  ###############################################################################
+  ## Augmented Lagrangian variant ----------------------------------------------
+  ###############################################################################
+  if (optim_type == "auglag") {
+    for (i in 1:n_optim) {
+      # Zufallsstartvektor erzeugen
+      q_rand <- stats::qnorm(stats::runif(n_vars))
 
-
-    #Optimization
-    if (optim_type=="auglag"){
-      for(i in 1:n_optim){
-
-        #Zufallsstartvektor erzeugen
-        q_rand <- stats::qnorm(stats::runif(n_vars))
-
-        #Standart-Optimierungsfunktion
-        unorm <- function(u){sqrt(sum(u^2))}
-        info.print(debug.TAG,debug.level,c("optim_run_i","/"),c(i,n_optim))
-        res<-nloptr::auglag(x0 = q_rand,
-                    fn = unorm,
-                    heq=h,
-                    localtol=loctol)
-
-        beta[i]<-res$value
-        par_u[i,]<-res$par
-        par_x[i,]<-gausTrans(res$par,FALSE)
-        dy[i,]<-grad(h,res$par)
+      # Standart-Optimierungsfunktion
+      unorm <- function(u) {
+        sqrt(sum(u^2))
       }
-      if (res$convergence<0){
-        warning("Error, Optimization failed!")
-        return()
-      }
-
-      duration<-proc.time()-tic
-      output<-list(
-        "beta"=min(beta),
-        "pf"=stats::pnorm(-abs(min(beta))),
-        "u_points"=par_u[which.min(beta),],
-        "x_points"=par_x[which.min(beta),],
-        "dy"=dy[which.min(beta),],
-        "optim_type"=optim_type,
-        "runtime"=duration
+      info.print(debug.TAG, debug.level, c("optim_run_i", "/"), c(i, n_optim))
+      res <- nloptr::auglag(
+        x0 = q_rand,
+        fn = unorm,
+        heq = h,
+        localtol = loctol
       )
 
-    }else if(optim_type=="rackfies"){
-
-      n_sim <- 0
-      x <- vector("numeric", n_vars)
-      y <- vector("numeric", n_vars)
-      dy <- vector("numeric", n_vars)
-      m_s <- vector("numeric", n_vars)
-      sd_s <- vector("numeric", n_vars)
-
-      finite_diff <- function(lsf,x,h){
-        dx <- vector("numeric",length(x))
-        for (i in 1:length(x)) {
-          x_lowerbound <- x
-          x_upperbound <- x
-          x_lowerbound[i] <- x[i]-h
-          x_upperbound[i] <- x[i]+h
-
-          dx_low <- lsf(x_lowerbound)
-          dx_high <- lsf(x_upperbound)
-          dx[i] <- (dx_high - dx_low)/(2*h)
-        }
-        return(dx)
-      }
-
-      for (i in 1:n_vars) {
-        x[i] <- lDistr[[i]][[1]]$mean
-      }
-      debug.print(debug.level,debug.TAG,c("x_Start"),x)
-
-      repeat{
-        for (i in 1:n_vars) {
-
-          x_ <- x[i]-lDistr[[i]][[1]]$X0
-          sd_s[i] <- (1/lDistr[[i]][[1]]$d(x_)*stats::dnorm(stats::qnorm(lDistr[[i]][[1]]$p(x_))))
-          m_s[i] <- x[i] - sd_s[i]*stats::qnorm(lDistr[[i]][[1]]$p(x_))
-
-          y[i] <- (x[i] - m_s[i])/sd_s[i]
-
-        }
-        debug.print(debug.level,debug.TAG,c("m_stern"),m_s)
-        debug.print(debug.level,debug.TAG,c("sd_stern"),sd_s)
-        debug.print(debug.level,debug.TAG,c("y"),y)
-
-        h_y <- lsf(x)
-        debug.print(debug.level,debug.TAG,c("h(y) = lsf(x) ="),h_y)
-
-        dy <- vector("numeric", n_vars)
-        dy <- finite_diff(lsf,x,1E-5)*sd_s
-        debug.print(debug.level,debug.TAG,c("dy"),dy)
-
-        # alphas
-        alpha <- vector("numeric",n_vars)
-        for (i in 1:n_vars) {
-          alpha[i] <- -dy[i]/((sum(dy^2))^(1/2))
-        }
-        debug.print(debug.level,debug.TAG,c("alphas"),alpha)
-
-        beta <- (h_y-sum(y*dy))/((sum(dy^2))^(1/2))
-        debug.print(debug.level,debug.TAG,c("beta"),beta)
-
-        x_neu <- vector("numeric",n_vars)
-        for (i in 1:n_vars) {
-          x_neu[i] <- m_s[i] + alpha[i]*sd_s[i]*beta
-        }
-        debug.print(debug.level,debug.TAG,c("x_k+1"),x_neu)
-        diff <- sum((x_neu - x)^2)^(1/2)
-
-        x <- x_neu
-
-        n_sim <- n_sim+1
-        debug.print(debug.level,debug.TAG,c("n_sim","beta","diff","loctol"),c(n_sim,beta,diff,loctol))
-
-        info.print(debug.TAG,debug.level,c("n_sim","beta","diff","loctol"),c(n_sim,beta,diff,loctol))
-        if(diff <= loctol | n_sim > n_optim){ break }
-      }
-
-
-      duration<-proc.time()-tic
-      output<-list(
-        "method"="FORM",
-        "beta"=beta,
-        "pf"=stats::pnorm(-beta),
-        "x_points"=x,
-        "dy"=dy,
-        "alpha"=alpha,
-        "diff"=diff,
-        "n_sim"=n_sim,
-        "optim_type"=optim_type,
-        "runtime"=duration[1:5]
-      )
+      beta[i] <- res$value
+      par_u[i, ] <- res$par
+      par_x[i, ] <- gausTrans(res$par, FALSE)
+      dy[i, ] <- grad(h, res$par)
     }
-  #Postprocessing
+    if (res$convergence < 0) {
+      warning("Error, Optimization failed!")
+      return()
+    }
 
+    duration <- proc.time() - tic
+    output <- list(
+      "beta" = min(beta),
+      "pf" = stats::pnorm(-abs(min(beta))),
+      "u_points" = par_u[which.min(beta), ],
+      "x_points" = par_x[which.min(beta), ],
+      "dy" = dy[which.min(beta), ],
+      "optim_type" = optim_type,
+      "runtime" = duration
+    )
 
-  debug.print(debug.level,debug.TAG,c(duration), msg="\nFORM Algorithm finished in  [s]: ")
+    ###############################################################################
+    ## Rackwitz-Fiessler iterative scheme ----------------------------------------
+    ###############################################################################
+  } else if (identical(tolower(optim_type), "rackfies")) {
+    n_sim <- 0L
+    x <- numeric(n_vars)
+    y <- numeric(n_vars)
+    dy <- numeric(n_vars)
+    m_s <- numeric(n_vars)
+    sd_s <- numeric(n_vars)
+
+    ## Safe wrappers for p/d calls ---------------------------------------
+    safe_p <- function(fun, x) {
+      val <- fun(x)
+      if (is.na(val) || val <= 0 || val >= 1) {
+        val <- min(max(val, .Machine$double.eps), 1 - .Machine$double.eps)
+      }
+      val
+    }
+    safe_d <- function(fun, x) {
+      val <- fun(x)
+      if (is.na(val) || val == 0) val <- .Machine$double.eps
+      val
+    }
+
+    ## Numerical differentiation ----------------------------------------
+    finite_diff <- function(fun_obj, x, h = 1e-5) {
+      dx <- numeric(length(x))
+      for (i in seq_along(x)) {
+        x_lowerbound <- x
+        x_upperbound <- x
+        x_lowerbound[i] <- x[i] - h
+        x_upperbound[i] <- x[i] + h
+
+        # message("[DEBUG] calling lsf() at point A")
+        dx_low <- fun_obj(x_lowerbound)
+        # message("[DEBUG] calling lsf() at point B")
+        dx_high <- fun_obj(x_upperbound)
+        dx[i] <- (dx_high - dx_low) / (2 * h)
+      }
+      dx
+    }
+
+    ## Initial values (mean if available, otherwise median) -------------
+    for (i in seq_len(n_vars)) {
+      ld <- lDistr[[i]][[1]]
+
+      if (!is.null(ld$mean) && is.finite(ld$mean)) {
+        x[i] <- ld$mean
+      } else {
+        # fallback for heavy-tail distributions (e.g. Log-Student-t)
+        x[i] <- ld$q(0.5)
+        if (debug.level >= 1) {
+          message(sprintf(
+            "[FORM] Using median as start value for variable %d (type=%s)",
+            i, ld$DistributionType
+          ))
+        }
+      }
+    }
+
+    if (debug.level >= 2) {
+      message("\n[DEBUG] Initial mean values of basic variables:")
+      print(sapply(lDistr, function(ld) {
+        c(
+          mean = ld[[1]]$mean,
+          sd = ld[[1]]$Sd,
+          type = ld[[1]]$DistributionType
+        )
+      }))
+    }
+    # debug
+    # print(str(lDistr[[1]][[1]]))
+    # print(str(lDistr[[2]][[1]]))
+
+    # lokale Kopie verhindern Ueberschreibung durch finite_diff()
+    lsf_local <- lsf
+
+    repeat {
+      sd_s <- m_s <- y <- numeric(n_vars)
+
+      ## Transformation: physical -> standardized -------------------------
+      for (i in seq_len(n_vars)) {
+        ld <- lDistr[[i]][[1]]
+        x_ <- x[i]
+
+        p_val <- safe_p(ld$p, x_)
+        d_val <- safe_d(ld$d, x_)
+
+        sd_s[i] <- stats::dnorm(stats::qnorm(p_val)) / d_val
+        m_s[i] <- x[i] - sd_s[i] * stats::qnorm(p_val)
+
+        y[i] <- (x[i] - m_s[i]) / sd_s[i]
+
+        # Debug information
+        if (debug.level >= 2) {
+          message(sprintf(
+            "[DEBUG][%d] p=%g d=%g sd_s=%g m_s=%g y=%g",
+            i, p_val, d_val, sd_s[i], m_s[i], y[i]
+          ))
+        }
+      }
+
+      h_y <- lsf_local(x)
+
+      # message("[DEBUG] calling lsf() at point D")
+      dy <- finite_diff(lsf_local, x) * sd_s
+
+      # --- Richtungscosinus alpha --------------------------------------
+      alpha <- numeric(n_vars)
+
+      for (i in seq_len(n_vars)) {
+        denom <- sqrt(sum(dy^2))
+        alpha[i] <- ifelse(denom == 0, -dy[i], -dy[i] / denom)
+      }
+
+      beta <- (h_y - sum(y * dy)) / sqrt(sum(dy^2))
+
+      if (!is.finite(beta)) {
+        warning(sprintf(
+          "[FORM/rackfies]: Beta not finite! h_y=%s sum(y*dy)=%s",
+          h_y, sum(y * dy)
+        ))
+        beta <- NA_real_
+      }
+
+      x_neu <- numeric(n_vars)
+
+      for (i in seq_len(n_vars)) {
+        x_neu[i] <- if (!is.na(alpha[i]) && !is.na(sd_s[i]) && !is.na(m_s[i])) {
+          m_s[i] + alpha[i] * sd_s[i] * beta
+        } else {
+          x[i]
+        }
+      }
+
+      delta_x <- sqrt(sum((x_neu - x)^2))
+
+      x <- x_neu
+      n_sim <- n_sim + 1L
+
+      debug.print(
+        debug.level, debug.TAG, c("n_sim", "beta", "delta_x", "loctol"),
+        c(n_sim, beta, delta_x, loctol)
+      )
+
+      info.print(
+        debug.TAG, debug.level, c("n_sim", "beta", "delta_x", "loctol"),
+        c(n_sim, beta, delta_x, loctol)
+      )
+
+      if ((isTRUE(delta_x <= loctol)) || isTRUE(n_sim > n_optim)) break
+    } # repeat loop end
+
+    duration <- proc.time() - tic
+
+    output <- list(
+      method = "FORM",
+      beta = beta,
+      pf = stats::pnorm(-beta),
+      x_points = x,
+      dy = dy,
+      alpha = alpha,
+      diff = delta_x,
+      n_sim = n_sim,
+      optim_type = optim_type,
+      runtime = duration[1:5]
+    )
+  }
+  debug.print(debug.level, debug.TAG, c(duration), msg = "\nFORM Algorithm finished in  [s]: ")
 
   return(output)
 }
-
-

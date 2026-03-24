@@ -4,20 +4,35 @@
 \name{SYS_LSF-class}
 \alias{SYS_LSF-class}
 \alias{SYS_LSF}
-\title{System Limit State Functions}
+\title{System Limit-State Function (SYS_LSF)}
 \description{
-Object that represents a limit state function
+A reference-class that stores a user-defined limit-state function.
+The function can be written either as an **expression** (`expr`) or
+as a **regular R function** (`func`).  All random variables that appear
+in the function must be supplied in the `vars` list as `PROB_BASEVAR`
+objects.
+}
+\details{
+The method `getLSF()` returns a **closure** that expects a numeric vector
+`x` (ordered exactly like `vars`) and evaluates the limit-state function.
+
+For consistency across FORM and Monte Carlo reliability methods,
+limit-state functions must either accept a single numeric vector
+argument or explicitly named scalar arguments.
+The use of \code{function(...)} is not supported.
 }
 \section{Fields}{
 
 \describe{
-\item{\code{expr}}{prepared for expression like SYS_LSF$expr <- expression(f_ck - d_nom)...}
+\item{\code{name}}{Optional human-readable name of the limit-state function.}
 
-\item{\code{func}}{prepared for objective functions like SYS_LSF$func <- function(x){return(x[1] + x[2])}}
+\item{\code{expr}}{Symbolic expression (e.g. `expression(f_ck - d_nom)`) that is
+later converted to a callable function via `ExpressionToFunction()`.}
 
-\item{\code{vars}}{needs list of PROB_BASEVAR-Object}
+\item{\code{func}}{Actual R function implementing the limit-state equation.
+May be `NULL` until defined by user or converted from `expr`.}
 
-\item{\code{name}}{Can be added for better recognition. Otherwise the problem will be called "Unkown Problem"}
+\item{\code{vars}}{List of `PROB_BASEVAR` objects that provide the random variables.}
 }}
 
 \section{Methods}{
@@ -28,12 +43,63 @@ Object that represents a limit state function
 \item{\code{check()}}{Checks all variables. You dont need to execute this, since the system object will do anyway.}
 }}
 
+\section{Limit-State Function (LSF) API}{
+
+
+A limit-state function must follow one of the two supported
+interface patterns:
+
+\describe{
+  \item{\code{function(x)}}{
+    A single numeric vector argument \code{x} containing all
+    basic variables in the order specified in \code{vars}.
+
+    Example:
+    \preformatted{
+    lsf$func <- function(x) {
+      x[1] - sum((x[-1]^2) / seq_along(x)[-1])
+    }
+    }
+  }
+
+  \item{\code{function(Z, Fy, M, ...)}}{
+    Explicitly named scalar arguments corresponding to the
+    variable names defined in \code{vars}.
+
+    Example:
+    \preformatted{
+    lsf$func <- function(Z, Fy, M) {
+      Z * Fy - M
+    }
+    }
+  }
+}
+
+The following form is \strong{not supported}:
+
+\preformatted{
+function(...)
+}
+
+Using \code{...} as the sole argument leads to inconsistent
+behaviour between FORM-based and Monte Carlo-based reliability
+methods and is therefore prohibited.
+
+For maximum robustness and compatibility across all reliability
+algorithms, the use of the vector form \code{function(x)} is
+recommended.
+}
+
 \examples{
-list_of_vars <- list(PROB_BASEVAR(),PROB_BASEVAR())
-lsf1 <- SYS_LSF(name="my first lsf", vars=list_of_vars)
-lsf1$func <- function(var1,var2){var1-var2}
+vars <- list(
+  PROB_BASEVAR(Name = "f_ck", DistributionType = "norm", Mean = 30, Sd = 1),
+  PROB_BASEVAR(Name = "d_nom", DistributionType = "norm", Mean = 0.2, Sd = 0.01)
+)
+lsf <- SYS_LSF(name = "Bending resistance", vars = vars)
+lsf$ExpressionToFunction()
 
 }
 \author{
-(C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

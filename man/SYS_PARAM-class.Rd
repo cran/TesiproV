@@ -4,16 +4,31 @@
 \name{SYS_PARAM-class}
 \alias{SYS_PARAM-class}
 \alias{SYS_PARAM}
-\title{Object for parametric Studies}
+\title{Object for parametric Studies (SYS_PARAM)}
 \description{
-Object to create probabilistic problems in parametric studies context. There are no changes how to use compared with SYS_PROB
+Extends `SYS_PROB` to perform a **parametric sweep** over one or more
+`PARAM_BASEVAR` objects.  For each combination of parameter values a full
+reliability analysis is executed and the results are stored in
+`beta_params` and `res_params`.
+}
+\details{
+The method `runMachines()` is almost identical to the one in `SYS_PROB`,
+but it loops over **all** parameter values, creates a readable run name,
+and stores the whole result hierarchy.
 }
 \section{Fields}{
 
 \describe{
-\item{\code{beta_params}}{Outputfield: See the beta values of the studie}
+\item{\code{beta_params}}{List of \eqn{\beta}-matrices (one matrix per parameter run).}
 
-\item{\code{res_params}}{Outputfield: See the the full result output of each run}
+\item{\code{res_params}}{List of detailed result objects (one per run).}
+
+\item{\code{nParams}}{Numeric vector: number of parameter values for each
+`PARAM_BASEVAR`.}
+
+\item{\code{nLsfs}}{Number of limit-state functions in the system.}
+
+\item{\code{nMachines}}{Number of analysis machines (methods) used.}
 }}
 
 \section{Methods}{
@@ -22,9 +37,40 @@ Object to create probabilistic problems in parametric studies context. There are
 \item{\code{printResults(path = "")}}{TesiproV can create a report file with all the necessary data for you. If you provide a path (or filename, without ending) it will store
 the data there, otherwise it will report to the console. Set the path via setwd() or check it via getwd().}
 
-\item{\code{runMachines()}}{Starts solving all given problems (sys_input) with all given algorithms (probMachines). After that one can access via $res...1}
+\item{\code{runMachines()}}{Starts solving all given problems (sys_input) with all given algorithms (probMachines).
+First checks that all analysis methods are loaded before validating limit-state functions.}
 }}
 
+\examples{
+# Simple 2-parameter sweep ------------------------------------------------
+# two random variables that will be varied
+pv1 <- PARAM_BASEVAR(
+  Name = "E_mod",
+  DistributionType = "norm",
+  ParamType = "Mean",
+  ParamValues = c(30e3, 35e3, 40e3)
+)
+pv2 <- PARAM_BASEVAR(
+  Name = "f_ck",
+  DistributionType = "norm",
+  ParamType = "Mean",
+  ParamValues = c(30, 35, 40)
+)
+
+lsf <- SYS_LSF(vars = list(pv1, pv2), name = "Bending")
+ps <- SYS_PARAM(
+  sys_input = list(lsf),
+  probMachines = list(PROB_MACHINE(name = "FORM", fCall = "FORM")),
+  sys_type = "serial"
+)
+
+\dontrun{
+ps$runMachines()
+ps$beta_params # matrix of \eqn{\beta}-values for every run
+}
+
+}
 \author{
-(C) 2021 - M. Ricker, K. Nille-Hauf, T. Feiri - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

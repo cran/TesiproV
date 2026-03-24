@@ -2,42 +2,76 @@
 % Please edit documentation in R/SORM.R
 \name{SORM}
 \alias{SORM}
-\title{Reliability Analysis at Biberach University of applied sciences}
+\title{Second-Order Reliability Method (SORM)}
 \usage{
 SORM(lsf, lDistr, debug.level = 0)
 }
 \arguments{
-\item{lsf}{objective function with limit state function in form of function(x) {x[1]+x[2]...}}
+\item{lsf}{objective function with limit state function in form of
+\code{function(x) \{ x[1] + x[2] + ... \}}.}
 
 \item{lDistr}{list ob distribiutions regarding the distribution object of TesiproV}
 
 \item{debug.level}{If 0 no additional info if 2 high output during calculation}
 }
 \value{
-The results will be provided within a list with the following objects. Acess them with "$"-accessor
-
-beta ... HasoferLind Beta Index
-
-pf ... probablity of failure
-
-u_points ... solution points
-
-dy ... gradients
+SORM returns an object containing the following elements:
+\itemize{
+  \item \code{beta}: Hasofer-Lind reliability index.
+  \item \code{pf}: Estimated probability of failure.
+  \item \code{u_points}: Design point(s) in the standard normal space (\eqn{u}-space).
+  \item \code{dy}: Gradient(s) of the limit-state function at the design point.
+}
 }
 \description{
-# S. Marelli, and B. Sudret, UQLab: A framework for uncertainty quantification in Matlab, Proc. 2nd Int. Conf. on Vulnerability, Risk Analysis and Management (ICVRAM2014), Liverpool (United Kingdom), 2014, 2554-2563.
-S. Lacaze and S. Missoum, CODES: A Toolbox For Computational Design, Version 1.0, 2015, URL: www.codes.arizona.edu/toolbox.
-X. Z. Wu, Implementing statistical fitting and reliability analysis for geotechnical engineering problems in R. Georisk: Assessment and Management of Risk for Engineered Systems and Geohazards, 2017, 11.2: 173-188.
+Second-Order Reliability Method (SORM) for the approximation
+of failure probabilities in structural reliability analysis.
+
+The SORM extends the First-Order Reliability Method (FORM)
+by incorporating second-order information of the limit-state function
+at the design point. By accounting for local curvature effects,
+SORM generally provides more accurate failure probability estimates
+for nonlinear limit-state functions.
+
+The method evaluates the principal curvatures of the limit-state surface
+in standard normal space and applies an asymptotic correction
+to the FORM probability of failure.
 }
 \references{
-Breitung, K. (1989). Asymptotic approximations for probability integrals. Probabilistic Engineering Mechanics 4(4), 187–190. 9, 10
+Breitung, K. (1989).
+Asymptotic approximations for probability integrals.
+\emph{Probabilistic Engineering Mechanics}, 4(4), 187-190.
 
-Cai, G. Q. and I. Elishakoff (1994). Refined second-order reliability analysis. Structural Safety 14(4), 267–276. 9, 10
+Cai, G. Q., & Elishakoff, I. (1994).
+Refined second-order reliability analysis.
+\emph{Structural Safety}, 14(4), 267-276.
 
-Hohenbichler, M., S. Gollwitzer, W. Kruse, and R. Rackwitz (1987). New light on first- and second order reliability methods. Structural Safety 4, 267–284. 10
+Hohenbichler, M., Gollwitzer, S., Kruse, W., & Rackwitz, R. (1987).
+New light on first- and second-order reliability methods.
+\emph{Structural Safety}, 4, 267-284.
 
-Tvedt, L. (1990). Distribution of quadratic forms in normal space – Applications to structural reliability. Journal of Engineering Mechanics 116(6), 1183–1197. 10
+Tvedt, L. (1990).
+Distribution of quadratic forms in normal space -
+Applications to structural reliability.
+\emph{Journal of Engineering Mechanics}, 116(6), 1183-1197.
+
+Marelli, S., & Sudret, B. (2014).
+UQLab: A framework for uncertainty quantification in Matlab.
+In \emph{Proceedings of the 2nd International Conference on
+Vulnerability, Risk Analysis and Management (ICVRAM2014)},
+Liverpool, United Kingdom, 2554-2563.
+
+Lacaze, S., & Missoum, S. (2015).
+CODES: A toolbox for computational design (Version 1.0).
+Retrieved from \url{http://www.codes.arizona.edu/toolbox/}
+
+Wu, X. Z. (2017).
+Implementing statistical fitting and reliability analysis
+for geotechnical engineering problems in R.
+\emph{Georisk: Assessment and Management of Risk for Engineered Systems and Geohazards},
+11(2), 173-188.
 }
 \author{
-(C) 2021 -  T. Feiri, K. Nille-Hauf, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

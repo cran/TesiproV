@@ -4,11 +4,14 @@
 \name{PARAM_LSF-class}
 \alias{PARAM_LSF-class}
 \alias{PARAM_LSF}
-\title{System Limit State Functions}
+\title{Parametric Limit-State Function (PARAM_LSF)}
 \description{
-Interface for LSF through PROB_LSF. No changes.
+Identical to `SYS_LSF` but inherits from it to make the class hierarchy clear
+when a parametric study is performed.  No additional fields or methods are
+required.
 }
 
 \author{
-(C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

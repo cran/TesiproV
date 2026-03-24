@@ -23,9 +23,7 @@
 #' @section Solving algorithms:
 #' \code{PROB_MACHINE}
 #'
-#' @author (C) 2021 -  K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+#' @author (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+#' TU Dortmund University - Chair of Structural Concrete (since 2023)
 #'
-#' @docType package
-#' @name TesiproV
-
-NULL
+"_PACKAGE"

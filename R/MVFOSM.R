@@ -1,15 +1,40 @@
-#' MVFOSM
 #' @name MVFOSM
+#' @title Mean-Value First-Order Second-Moment (MVFOSM)
+#' @description
+#' Mean-Value First-Order Second-Moment (MVFOSM) method for the
+#' approximation of failure probabilities in structural reliability analysis.
+#'
+#' The MVFOSM method linearises the limit-state function at the mean values
+#' of the basic random variables and estimates the reliability index
+#' and probability of failure based on first-order moment information.
+#'
+#' This classical approach provides a computationally efficient
+#' approximation but may be inaccurate for strongly nonlinear
+#' limit-state functions.
+#'
 #' @param lsf LSF Definition, can be Expression or Function. Defined by the FLAG isExpression (see below)
 #' @param lDistr List of Distributions
 #' @param h If isExpression is False, than Finite Difference Method is used for partial deviation. h is the Windowsize
 #' @param isExpression Boolean, If TRUE lsf has to be typeof expression, otherwise lsf has to be type of function()
 #' @param debug.level If 0 no additional info if 2 high output during calculation
 #'
-#' @return beta, pf, design.point in x space, alphas, runtime
-#' @references  FREUDENTHAL, A.M. Safety and the probability of structural failure. Am Soc Civil Eng Trans 1956; 121(2843):1337–97.
-#' @author (C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau#'
+#' @return MVFOSM returns an object containing the following elements:
+#' \itemize{
+#'   \item \code{beta}: Estimated reliability index.
+#'   \item \code{pf}: Estimated probability of failure.
+#'   \item \code{design.point}: Design point in the original \eqn{x}-space.
+#'   \item \code{alphas}: Direction cosines (importance factors) in the standard normal space.
+#'   \item \code{runtime}: Total runtime of the algorithm.
+#' }
+#' @references
+#' Freudenthal, A. M. (1956).
+#' Safety and the probability of structural failure.
+#' \emph{Transactions of the American Society of Civil Engineers},
+#' 121, 1337-1397.
+#' @author (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+#' TU Dortmund University - Chair of Structural Concrete (since 2023)
 #' @export
+
 MVFOSM <- function(lsf,
                    lDistr,
                    h=0.0001,
@@ -45,10 +70,6 @@ MVFOSM <- function(lsf,
 
   }else{
     finite_diff <- function(lsf,x,h){
-      #lsf ist funktion mit lsf(x){x[1]...}
-      #x vektor für
-      #h ist bandbreite
-
       for (i in 1:length(x)) {
         x_lowerbound <- x
         x_upperbound <- x

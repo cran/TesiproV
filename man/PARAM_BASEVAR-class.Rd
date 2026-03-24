@@ -4,19 +4,43 @@
 \name{PARAM_BASEVAR-class}
 \alias{PARAM_BASEVAR-class}
 \alias{PARAM_BASEVAR}
-\title{Object for parametric variable}
+\title{Parametric Random Variable (PARAM_BASEVAR)}
 \description{
-Object to create parametric basic variables
+Extends `PROB_BASEVAR` so that one of the distribution parameters (Mean,
+Sd or DistributionType) can be **swept** over a user-defined vector of values.
+}
+\details{
+The method `nextParam()` advances `pos` (circularly) and updates the basic
+fields (`Mean`, `Sd`, `DistributionType`, `DistributionParameters`) before
+calling `prepare()` again.  `getCurrentParam()` returns the *last* value that
+was used (convenient for readable run names).
 }
 \section{Fields}{
 
 \describe{
-\item{\code{ParamValues}}{A vector of values of the parametric studie (e.g. c(1,3,5,7) or seq(1,10,2))}
+\item{\code{ParamValues}}{Numeric vector holding the values that will be assigned
+during the sweep.}
 
-\item{\code{ParamType}}{A field to determine what should be parametric. Possible is: "Mean", "Sd", "DistributionType"}
+\item{\code{ParamType}}{Which parameter is varied: `"Mean"`, `"Sd"` or
+`"DistributionType"`.}
+
+\item{\code{pos}}{Current index inside `ParamValues` (used internally).}
 }}
 
 
+\examples{
+pvar <- PARAM_BASEVAR(
+  Name = "E_mod",
+  DistributionType = "norm",
+  ParamType = "Mean",
+  ParamValues = c(30e3, 35e3, 40e3)
+)
+pvar$nextParam() # sets Mean = 30.000 and prepares the distribution
+pvar$getCurrentParam()
+
+
+}
 \author{
-(C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }

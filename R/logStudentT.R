@@ -1,136 +1,112 @@
-#' Density Function for logarithmic student T distritbution
+#' Log-Student t Distribution
 #'
-#' @param x quantiles
-#' @param m mean (1. parameter)
-#' @param s standard deviation (2. parameter)
-#' @param n 3. paramter
-#' @param nue degrees of freedom
-#' @return density
+#' Density, distribution function, quantile function and random generation
+#' for the log-Student t distribution.
+#'
+#' The cumulative distribution function is given by
+#' \deqn{
+#' F_X(x) =
+#' F_{t_{\nu}}\left(
+#' \frac{\ln(X/m)}{s}
+#' \sqrt{\frac{n}{n+1}}
+#' \right),
+#' }
+#' where \eqn{F_{t_{\nu}}(\cdot)} denotes the cumulative distribution
+#' function of a log-Student t distribution with \eqn{\nu} degrees of freedom.
+#'
+#' The log-Student t distribution arises as the marginal
+#' distribution of a log-normal distributed variable with conjugate
+#' log-normal-gamma prior uncertainty in \eqn{m} and \eqn{s}.
+#'
+#' The hyperparameter vector \code{hyper.param} is defined as
+#' \deqn{(m, s, n, \nu)}
+#' where
+#' \itemize{
+#'   \item \eqn{m} is the mean value of an equivalent sample of size \eqn{n},
+#'   \item \eqn{s} is the empirical standard deviation of an equivalent sample
+#'         of size \eqn{\nu + 1},
+#'   \item \eqn{\nu} denotes the degrees of freedom of the Student t distribution.
+#' }
+#'
+#' For details see:
+#' \url{https://www.jcss-lc.org/publications/jcsspmc/concrete.pdf}
+#'
+#' @name LogStudentT
+#' @aliases logStudentT lt
+#'
+#' @param x,q Vector of quantiles.
+#' @param p Vector of probabilities.
+#' @param n_vals Number of random values to generate.
+#' @param hyper.param Numeric vector \eqn{(m, s, n, \nu)}.
+#'
+#' @return
+#' \itemize{
+#'   \item \code{dlt()} returns the density.
+#'   \item \code{plt()} returns the distribution function.
+#'   \item \code{qlt()} returns the quantile function.
+#'   \item \code{rlt()} generates random deviates.
+#' }
 #'
 #' @examples
-#' dlt(0.5,3,6,2,5)
+#' hp <- c(3.4, 0.14, 3, 10)
+#' #' dlt(0.5, hp)
 #'
-#' @author (C) 2021 - K. Nille-Hauf, T. Feiri, M. Ricker - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+#' @author
+#' (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux --
+#' Hochschule Biberach (until 2022), TU Dortmund University - Chair of Structural Concrete (since 2023)
+
+#' @rdname LogStudentT
 #' @export
-#'
-dlt <- function(x, m, s, n, nue){
+dlt <- function(x, hyper.param){
+  m <- hyper.param[1]
+  s <- hyper.param[2]
+  n <- hyper.param[3]
+  v <- hyper.param[4]
 
+  s_trans <- s/sqrt(n/(n+1))
+  x_trans <- (log(x)-m)/s_trans
 
-  #PDF
-  #v = nue
-  #
-  #d <- (gamma((nue + 1)/2) / (x*gamma(nue/2)*sqrt(pi*nue)*s))*(1+1/nue*((log(x)-m)/s*sqrt(n/(n+1)))^2)^(-(nue+1)/2)
-  if(x>0){
-    s_trans <- s/sqrt(n/(n+1))
-    x_trans <- (log(x)-m)/s_trans
-
-    d <- 1/(x*s_trans)*stats::dt(df=nue, x=x_trans)
-  }else{
-    d <- 0
-  }
-
+  d <- 1/(x*s_trans)*stats::dt(df=v, x=x_trans)
   return(d)
-
 }
 
-
-
-#' Probablity Function for logarithmic student T distritbution
-#'
-#' @param q quantiles
-#' @param m mean (1. parameter)
-#' @param s standard deviation (2. parameter)
-#' @param n 3. paramter
-#' @param nue degrees of freedom
-#'
-#' @return density
-#' @author (C) 2021 - M. Ricker, K. Nille-Hauf, T. Feiri - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+#' @rdname LogStudentT
 #' @export
-#'
-plt <- function(q, m, s, n, nue){
-  if(q>0){
-    s_trans <- s/sqrt(n/(n+1))
-    q_trans <- (log(q)-m)/s_trans
-    p <- stats::pt(q_trans, df=nue)
-  }else{
-    p <- 0
-  }
+plt <- function(q, hyper.param){
+  m <- hyper.param[1]
+  s <- hyper.param[2]
+  n <- hyper.param[3]
+  v <- hyper.param[4]
+
+  s_trans <- s/sqrt(n/(n+1))
+  q_trans <- (log(q)-m)/s_trans
+  p <- stats::pt(q_trans, df=v)
   return(p)
 }
 
-#' Quantil Function for logarithmic student T distritbution
-#'
-#' @param p probablity
-#' @param m mean (1. parameter)
-#' @param s standard deviation (2. parameter)
-#' @param n 3. paramter
-#' @param nue degrees of freedom
-#'
-#' @author (C) 2021 - M. Ricker, K. Nille-Hauf, T. Feiri - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
-#' @return quantile
+#' @rdname LogStudentT
 #' @export
-#'
-qlt <- function(p, m, s, n, nue){
+qlt <- function(p, hyper.param){
+  m <- hyper.param[1]
+  s <- hyper.param[2]
+  n <- hyper.param[3]
+  v <- hyper.param[4]
+
   s_trans <- s/sqrt(n/(n+1))
-  q <- exp(stats::qt(df=nue, p=p)*s_trans+m)
+  q <- exp(stats::qt(df=v, p=p)*s_trans+m)
   return(q)
 }
 
-#' Random Realisation-Function for logarithmic student T distritbution
-#'
-#' @param n_vals number of realisations
-#' @param m mean (1. parameter)
-#' @param s standard deviation (2. parameter)
-#' @param n 3. paramter
-#' @param nue degrees of freedom
-#' @author (C) 2021 - M. Ricker, K. Nille-Hauf, T. Feiri - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
-#' @return random number
+#' @rdname LogStudentT
 #' @export
-#'
-rlt  <- function(n_vals, m, s, n, nue){
-  q <- stats::runif(n_vals)
-  r <- qlt(q, m, s,n,nue)
+rlt  <- function(n_vals, hyper.param){
+  m <- hyper.param[1]
+  s <- hyper.param[2]
+  n <- hyper.param[3]
+  v <- hyper.param[4]
 
-  # Implement socalled natural boundaries
-  # 5 times sd left and right...
-  if(r<0){
-    r <- 0
-  }
+  q <- stats::runif(n_vals)
+  r <- qlt(q, hyper.param)
   return(r)
 }
 
-
-
-# m <- 3.85
-# s <- 0.09
-# n <- 3
-# nue <- 6
-# x <- seq(1,100,0.1)
-# d_st <- dlstudentt(x,m,s,n,nue)
-# plot(x=x, y=d_st, type="l")
-#
-#
-# q <- seq(1,100,0.1)
-# p_st <- plstudentt(q, m, s,n,nue)
-# plot(x=q, y=p_st, type="l")
-#
-#
-#
-# q <- seq(0,1,0.01)
-# q_st <- qlstudentt(q, m, s,n,nue)
-# plot(x=q, y=q_st, type="l")
-#
-# n_vals <- 1000000
-# r_st <- rlstudentt(n_vals, m, s,n,nue)
-# mean(r_st)
-# plot(r_st)
-#
-#
-# dlstudentt(qlstudentt(0.5, m , s, n, nue),m,s,n,nue)
-# plstudentt(qlstudentt(0.5, m , s, n, nue), m, s, n, nue)
-# qlstudentt(0.5, m , s, n, nue)
-#
-# n_vals <- 1000000
-# r_st <- rlstudentt(n_vals, m, s,n,nue)
-# mean(r_st)
-# plot(r_st)

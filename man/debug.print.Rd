@@ -4,7 +4,15 @@
 \alias{debug.print}
 \title{internal  Helper function to debug more easy}
 \usage{
-debug.print(infoLevel, flag = "", values, msg = "", type = "INFO")
+debug.print(
+  infoLevel,
+  flag = "",
+  values = character(0),
+  msg = "",
+  type = "INFO",
+  step_interval = 10,
+  iter = NA
+)
 }
 \arguments{
 \item{infoLevel}{If 0, no Output (just Errors), if 1 little output, if 2 bigger output}
@@ -16,10 +24,17 @@ debug.print(infoLevel, flag = "", values, msg = "", type = "INFO")
 \item{msg}{here add some extra msg}
 
 \item{type}{Type can be "INFO" or "ERROR"}
+
+\item{step_interval}{Optional integer specifying
+the interval at which debug messages are printed.}
+
+\item{iter}{Current iteration index used for
+conditional debug output.}
 }
 \description{
 internal  Helper function to debug more easy
 }
 \author{
-(C) 2021 - M. Ricker, K. Nille-Hauf, T. Feiri - Hochschule Biberach, Institut fuer Konstruktiven Ingenieurbau
+(C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
+TU Dortmund University - Chair of Structural Concrete (since 2023)
 }
