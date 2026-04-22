@@ -38,7 +38,6 @@ pvar <- PARAM_BASEVAR(
 pvar$nextParam() # sets Mean = 30.000 and prepares the distribution
 pvar$getCurrentParam()
 
-
 }
 \author{
 (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),

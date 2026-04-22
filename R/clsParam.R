@@ -460,7 +460,6 @@ PARAM_LSF <- setRefClass(
 #' pvar$nextParam() # sets Mean = 30.000 and prepares the distribution
 #' pvar$getCurrentParam()
 #'
-#'
 #' @author (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
 #' TU Dortmund University - Chair of Structural Concrete (since 2023)
 #'
@@ -693,9 +692,7 @@ PARAM_DETVAR$methods(
       ## 4) Abschluss - interne Vorbereitung
       prepare()
       if (!is.null(.cache)) rm(list = ls(envir = .cache), envir = .cache)
-    }
-
-    ,
+    },
     getCurrentParam = function() {
       idx <- if (pos == 1L) length(ParamValues) else pos - 1L
       ParamValues[idx]

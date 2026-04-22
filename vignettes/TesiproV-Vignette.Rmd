@@ -487,6 +487,136 @@ beta_values <- ps_param$beta_params
 plot(para_values, beta_values, type = "l", xlab = "Force F [kN]", ylab = "Reliability index β [-]")
 ```
 
+## Parallelisation in TesiproV
+### General
+TesiproV supports parallel execution for Monte Carlo-based reliability methods, including `MC_IS()` and `MC_CRUDE()`. The package provides two parallel backends:
+
+* "parallel" -- based on base R's parallel package  
+* "future" -- based on the future ecosystem
+
+TesiproV does not modify the active future plan. Users are responsible for configuring parallel execution explicitly.
+
+### Reproducibility and Determinism
+All Monte Carlo simulations in TesiproV are designed to be:
+
+* Deterministic for a fixed seed  
+* Independent of the number of worker threads  
+* Independent of the selected backend
+
+This means that:
+```{r, eval=FALSE}
+MC_IS(..., seed = 123, use_threads = 1)
+MC_IS(..., seed = 123, use_threads = 8)
+```
+
+will produce identical results.
+
+Determinism is guaranteed by performing all random number generation in the master process. Worker processes do not generate random numbers.
+
+### Backend Overview
+1. The "parallel" Backend
+
+* Uses `parallel::mclapply()` on Linux/macOS  
+* Uses PSOCK clusters on Windows  
+* Suitable for high-performance Linux clusters  
+* No dependency on `future`
+
+Example:
+
+```{r, eval=FALSE}
+MC_IS(..., backend = "parallel", use_threads = 8)
+```
+
+2. The "future" Backend
+   
+Delegates parallelisation to the future framework.
+TesiproV does not change the global future plan. Users must configure parallel execution explicitly.
+
+Linux / macOS example:
+```{r, eval=FALSE}
+library(future)
+plan(multicore, workers = 8)
+
+MC_IS(..., backend = "future")
+```
+
+Windows example:
+```{r, eval=FALSE}
+library(future)
+plan(multisession, workers = 8)
+
+MC_IS(..., backend = "future")If no future plan is set, execution will be sequential.
+```
+
+### Recommended Parallel Settings
+
+Parallel efficiency depends strongly on the computational cost of the limit-state function (LSF).
+
+| Problem Type               | Recommended Threads | Backend Recommendation      | Suggested `n_batch`      |
+|----------------------------|--------------------|-----------------------------|--------------------------|
+| Very simple LSF           | 1-2                | `"future"` or `"parallel"`  | 50,000 - 100,000         |
+| Moderately expensive LSF  | 4-8                | `future(multicore)`         | 100,000 - 250,000        |
+| Expensive LSF             | 8-16               | `future(multicore)`         | 250,000 - 500,000        |
+| Very expensive LSF        | ~16                | `future(multicore)`         | ~500,000                 |
+
+
+Using more than 16 threads on large shared-memory systems often leads to memory-bandwidth saturation.
+
+### Batch Size Selection
+Performance improves significantly when n_batch is large enough to amortize parallel overhead.
+
+Typical observations:
+
+* Small batches -> overhead dominates
+* Medium batches -> optimal performance
+* Very large batches -> memory-bound regime
+
+For HPC workloads, a batch size between:
+
+```{r, eval=FALSE}
+250,000 -- 500,000
+```
+
+often provides near-optimal performance.
+
+### Performance Characteristics
+Parallel scaling depends on:
+
+* LSF computational complexity
+* Memory bandwidth
+* NUMA architecture
+* Batch size
+
+For CPU-intensive LSFs, typical scaling on modern multi-core systems is:
+
+* 2 threads -> ~1.6x speedup  
+* 4 threads -> ~2.8-3.5x  
+* 8 threads -> ~4-6×  
+* 16 threads -> ~6-9×  
+* 32 threads -> often limited by memory bandwidth
+
+
+### HPC Usage Notes
+On large Linux clusters (e.g., NUMA systems):
+
+* `future(multicore)` typically provides the best performance  
+* Avoid very small n_batch values  
+* Prefer 8-16 threads for optimal efficiency  
+* Use deterministic seeds for reproducible studies
+
+Example HPC workflow:
+```{r, eval=FALSE}
+library(future)
+plan(multicore, workers = 16)
+
+res <- MC_IS(
+  lsf = my_lsf,
+  lDistr = my_distr,
+  n_batch = 300000,
+  backend = "future",
+  seed = 12345
+)
+```
 
 ## Interpretation of results and post processing
 

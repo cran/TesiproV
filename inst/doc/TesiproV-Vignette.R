@@ -155,6 +155,40 @@ para_values <- c(17, 18, 19, 20)
 beta_values <- ps_param$beta_params
 plot(para_values, beta_values, type = "l", xlab = "Force F [kN]", ylab = "Reliability index β [-]")
 
+## ----eval=FALSE---------------------------------------------------------------
+# MC_IS(..., seed = 123, use_threads = 1)
+# MC_IS(..., seed = 123, use_threads = 8)
+
+## ----eval=FALSE---------------------------------------------------------------
+# MC_IS(..., backend = "parallel", use_threads = 8)
+
+## ----eval=FALSE---------------------------------------------------------------
+# library(future)
+# plan(multicore, workers = 8)
+# 
+# MC_IS(..., backend = "future")
+
+## ----eval=FALSE---------------------------------------------------------------
+# library(future)
+# plan(multisession, workers = 8)
+# 
+# MC_IS(..., backend = "future")If no future plan is set, execution will be sequential.
+
+## ----eval=FALSE---------------------------------------------------------------
+# 250,000 -- 500,000
+
+## ----eval=FALSE---------------------------------------------------------------
+# library(future)
+# plan(multicore, workers = 16)
+# 
+# res <- MC_IS(
+#   lsf = my_lsf,
+#   lDistr = my_distr,
+#   n_batch = 300000,
+#   backend = "future",
+#   seed = 12345
+# )
+
 ## ----eval = FALSE-------------------------------------------------------------
 # ps <- SYS_PARAM(
 #   sys_input = list(lsf),

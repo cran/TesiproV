@@ -12,8 +12,7 @@
 #'   conditional debug output.
 #' @author (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
 #' TU Dortmund University - Chair of Structural Concrete (since 2023)
-
-
+#' @keywords internal
 debug.print <- function(infoLevel,
                         flag = "",
                         values = character(0),
@@ -21,7 +20,6 @@ debug.print <- function(infoLevel,
                         type = "INFO",
                         step_interval = 10,
                         iter = NA) {
-
   if (infoLevel == 0 && type != "ERROR") {
     return(invisible(NULL))
   }
@@ -82,6 +80,7 @@ info.print <- function(tag, verbose, varnames, values) {
 #' @return A logical scalar (`TRUE` if `x` is empty, `FALSE` otherwise).
 #' @keywords internal
 #' @examples
+#' \dontrun{
 #' is_empty(NULL) # TRUE
 #' is_empty(numeric(0)) # TRUE
 #' is_empty(list()) # TRUE
@@ -89,7 +88,7 @@ info.print <- function(tag, verbose, varnames, values) {
 #' is_empty(1:5) # FALSE
 #' is_empty(list(a = 1)) # FALSE
 #' is_empty(data.frame(x = 1)) # FALSE
-#' @export
+#' }
 
 is_empty <- function(x) {
   ## 1) NULL -------------------------------------------------------------
@@ -126,8 +125,8 @@ is_empty <- function(x) {
 #' problem.
 #' @param x any R object
 #' @return TRUE if x should be treated as missing, FALSE otherwise
-#' @export
-
+#'
+#' @keywords internal
 is_missing <- function(x) {
   if (is.null(x)) {
     return(TRUE)

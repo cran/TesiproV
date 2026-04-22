@@ -150,6 +150,8 @@ SYS_PROB <- setRefClass(
     beta_single = "matrix",
     beta_sys = "matrix",
     params_sys = "list",
+    sys_structure = "ANY",
+    smooth_kappa = "numeric",
     debug.level = "numeric"
   )
 )
@@ -161,7 +163,20 @@ SYS_PROB$methods(
       initFields(...)
       beta_single <<- matrix(, 0, 0)
       beta_sys <<- matrix(, 0, 0)
-      debug.level <<- 0
+
+      # Default smooth parameter
+      if (is_empty(smooth_kappa)) {
+        smooth_kappa <<- 20
+      }
+
+      # Default system structure
+      if (is_empty(sys_structure)) {
+        sys_structure <<- sys_type # fallback to existing behaviour
+      }
+      # Only set default if not provided by user
+      if (is_empty(debug.level)) {
+        debug.level <<- 0
+      }
     },
     runMachines = function() {
       "Starts solving all given problems (sys_input) with all given algorithms (probMachines).
@@ -320,9 +335,9 @@ SYS_PROB$methods(
 
       ## make sure the debug level that you set globally is also forwarded
       ## (the MC_IS routine expects an argument called `debug.level`)
-      if (!is.null(debug.level)) {
-        params$debug.level <- debug.level
-      }
+      # if (!is.null(debug.level)) {
+      #   params$debug.level <- debug.level
+      # }
 
       # debug-Message
       if (debug.level >= 2) {
@@ -425,67 +440,104 @@ SYS_PROB$methods(
         res_sys[[length(res_sys) + 1]] <<- res
         info.print("SimpleBounds", debug.level, c("system_mode", "beta_min", "beta_max"), c(sys_type, min_beta, max_beta))
       } else if (calcType == "MCIS") {
-        ## -------------------------------------------------
-        ## 1) Build the list of limit-state functions and
-        ##    marginal distribution objects (unchanged)
-        ## -------------------------------------------------
+        # -------------------------------------------------
+        # 1) Collect limit-state functions and distributions
+        # -------------------------------------------------
+
         lsfs <- list()
         distr <- list()
-        for (i in 1:length(sys_input)) {
+
+        for (i in seq_along(sys_input)) {
           sys_input[[i]]$check()
+
           lsfs[[i]] <- sys_input[[i]]$getLSF()
-          # subdistr <- lapply(sys_input[[i]]$vars, function(v) v$getlDistr())
-          subdistr <- lapply(sys_input[[i]]$vars, function(v) {
-            d_wrapped <- v$getlDistr()
-            # If getlDistr() returned the wrapper list (funlist, params), extract funlist
-            if (is.list(d_wrapped) && length(d_wrapped) >= 1 && is.list(d_wrapped[[1]]) && !is.null(d_wrapped[[1]]$p)) {
-              return(d_wrapped[[1]])
+
+          distr[[i]] <- lapply(sys_input[[i]]$vars, function(v) {
+            d <- v$getlDistr()
+
+            if (is.list(d) && length(d) >= 1 &&
+              is.list(d[[1]]) && !is.null(d[[1]]$p)) {
+              d[[1]]
+            } else if (is.list(d) && !is.null(d$p)) {
+              d
+            } else {
+              stop("Unexpected distribution object format returned by getlDistr()")
             }
-            # otherwise assume d_wrapped already is the funlist
-            if (is.list(d_wrapped) && !is.null(d_wrapped$p)) {
-              return(d_wrapped)
-            }
-            stop("Unexpected distribution object format returned by getlDistr()")
           })
-
-          # subdistr <- list()
-          # for (k in 1:length(sys_input[[i]]$vars)) {
-          #   v <- sys_input[[i]]$vars[[k]]
-          #   subdistr[[k]] <- v$getlDistr()
-          # }
-          distr[[i]] <- subdistr
         }
 
-        # --- DEBUG: print structure to verify what is passed to MC_IS_system
-        if (debug.level >= 2) {
-          message("DEBUG before calling MC_IS_system: lsfs and distr structures:")
-          str(lsfs)
-          str(distr)
+        is_system <- length(lsfs) > 1
+
+        # -------------------------------------------------
+        # 2) Determine system method
+        # -------------------------------------------------
+
+        system_method <- if (!is.null(params$system_method)) {
+          params$system_method
+        } else {
+          "multimodal"
         }
 
-        # optional sanity check - will stop early if something is wrong
-        for (i in seq_along(distr)) {
-          for (j in seq_along(distr[[i]])) {
-            if (!is.list(distr[[i]][[j]]) || is.null(distr[[i]][[j]]$p)) {
-              stop(sprintf("Sanity check failed: distr[[%d]][[%d]] not a funlist", i, j), call. = FALSE)
+        # -------------------------------------------------
+        # 3) Flatten distributions (needed for smooth)
+        # -------------------------------------------------
+
+        distr_flat <- unlist(distr, recursive = FALSE)
+
+        # -------------------------------------------------
+        # 4) Build global smooth LSF if requested
+        # -------------------------------------------------
+
+        if (is_system && system_method == "smooth") {
+          g_sys <- function(x) {
+            g_vals <- numeric(length(lsfs))
+
+            k <- 1
+
+            for (i in seq_along(lsfs)) {
+              n_var <- length(sys_input[[i]]$vars)
+
+              g_vals[i] <- lsfs[[i]](x[k:(k + n_var - 1)])
+
+              k <- k + n_var
+            }
+
+            if (.self$sys_structure == "parallel") {
+              smooth_max(g_vals, .self$smooth_kappa)
+            } else {
+              smooth_min(g_vals, .self$smooth_kappa)
             }
           }
         }
-        # ---------------------------------------------------------------
-        # 2) Pull the optional entries from `params` (if they exist)
-        # ---------------------------------------------------------------
-        seed_val <- if (!is.null(params$seed)) params$seed else NULL
-        backend_val <- if (!is.null(params$backend)) params$backend else "future"
-        dataRecord_val <- if (!is.null(params$dataRecord)) params$dataRecord else FALSE
 
-        ## -------------------------------------------------
-        ## 3) Gather *all* arguments for MC_IS
-        ## -------------------------------------------------
-        ## a) The arguments that are always required (hard-coded)
-        base_args <- list(
-          lsf = lsfs,
-          lDistr = distr,
-          sys_type = sys_type,
+        # -------------------------------------------------
+        # 5) Select MC_IS input
+        # -------------------------------------------------
+
+        if (!is_system) {
+          lsf_arg <- lsfs[[1]]
+          lDistr_arg <- distr[[1]]
+        } else if (system_method == "multimodal") {
+          lsf_arg <- lsfs
+          lDistr_arg <- distr
+        } else if (system_method == "smooth") {
+          lsf_arg <- g_sys
+          lDistr_arg <- distr_flat
+        } else {
+          stop("system_method must be 'multimodal' or 'smooth'", call. = FALSE)
+        }
+
+        # -------------------------------------------------
+        # 6) Prepare MC_IS arguments
+        # -------------------------------------------------
+
+        seed_val <- params$seed %||% NULL
+        backend_val <- params$backend %||% "future"
+        dataRecord <- params$dataRecord %||% FALSE
+
+        mc_args <- list(
+          lsf = lsf_arg,
+          lDistr = lDistr_arg,
           cov_user = cov_user,
           n_batch = n_batch,
           n_max = n_max,
@@ -495,47 +547,283 @@ SYS_PROB$methods(
           dps = dps,
           debug.level = debug.level,
           seed = seed_val,
-          backend = backend_val, # fallback, wenn nicht angegeben
-          dataRecord = dataRecord_val
+          backend = backend_val,
+          dataRecord = dataRecord,
+          sys_type = sys_type
         )
 
-        ## b) Append the user-supplied options (the content of `params`)
-        ##    - but only keep those names that really exist in MC_IS
-        ##    (otherwise `do.call` would fail with unused argument).
-        ##    `formals(MC_IS)` returns the vector of formal argument names.
-        mc_formals <- names(formals(TesiproV::MC_IS))
+        # -------------------------------------------------
+        # 7) Run MC_IS
+        # -------------------------------------------------
 
-        ## keep only entries whose name appears in the formal list
-        user_args <- params[
-          (names(params) %in% mc_formals) & # a) valid for MC_IS
-            !(names(params) %in% names(base_args)) # b) not duplicate
-        ]
+        res <- do.call(TesiproV::MC_IS, mc_args)
 
-        ## c) Final argument list -> base args + (filtered) user args
-        mc_args <- c(base_args, user_args)
+        # -------------------------------------------------
+        # 8) Store result
+        # -------------------------------------------------
 
-        ## -------------------------------------------------
-        ## 3) Call the Monte-Carlo routine
-        ## -------------------------------------------------
-        if (debug.level >= 2) {
-          message("Calling MC_IS_system with:")
-          print(names(mc_args))
-        }
-
-        res <- do.call(TesiproV:::MC_IS_system, mc_args)
-
-        ## -------------------------------------------------
-        ## 4) Store the result (unchanged)
-        ## -------------------------------------------------
         if (nrow(beta_sys) < 1) {
           beta_sys <<- matrix(nrow = 1, ncol = 1)
-          beta_sys[1, 1] <<- res$beta
+
           rownames(beta_sys) <<- "MC IS"
         } else {
-          beta_sys <<- rbind(beta_sys, "MC IS" = res$beta)
+          beta_sys <<- rbind(beta_sys, "MC IS" = NA)
         }
+
+        beta_sys[nrow(beta_sys), 1] <<- res$beta
+
         res_sys[[length(res_sys) + 1]] <<- res
-        ## MC_CRUDE
+
+
+        # } else if (calcType == "MCIS") {
+        #   ## -------------------------------------------------
+        #   ## 1) Build the list of limit-state functions and
+        #   ##    marginal distribution objects (unchanged)
+        #   ## -------------------------------------------------
+        #   lsfs <- list()
+        #   distr <- list()
+
+        #   for (i in 1:length(sys_input)) {
+        #     sys_input[[i]]$check()
+        #     lsfs[[i]] <- sys_input[[i]]$getLSF()
+        #     # subdistr <- lapply(sys_input[[i]]$vars, function(v) v$getlDistr())
+        #     subdistr <- lapply(sys_input[[i]]$vars, function(v) {
+        #       d_wrapped <- v$getlDistr()
+        #       # If getlDistr() returned the wrapper list (funlist, params), extract funlist
+        #       if (is.list(d_wrapped) && length(d_wrapped) >= 1 && is.list(d_wrapped[[1]]) && !is.null(d_wrapped[[1]]$p)) {
+        #         return(d_wrapped[[1]])
+        #       }
+        #       # otherwise assume d_wrapped already is the funlist
+        #       if (is.list(d_wrapped) && !is.null(d_wrapped$p)) {
+        #         return(d_wrapped)
+        #       }
+        #       stop("Unexpected distribution object format returned by getlDistr()")
+        #     })
+
+        #     # subdistr <- list()
+        #     # for (k in 1:length(sys_input[[i]]$vars)) {
+        #     #   v <- sys_input[[i]]$vars[[k]]
+        #     #   subdistr[[k]] <- v$getlDistr()
+        #     # }
+        #     distr[[i]] <- subdistr
+        #   }
+
+        #   is_system <- length(lsfs) > 1
+
+        #   system_method <- if (!is.null(params$system_method)) {
+        #     params$system_method
+        #   } else {
+        #     "multimodal"
+        #   }
+
+        #   # --- DEBUG: print structure to verify what is passed to MC_IS_system
+        #   if (debug.level >= 2) {
+        #     message("DEBUG before calling MC_IS_system: lsfs and distr structures:")
+        #     str(lsfs)
+        #     str(distr)
+        #   }
+
+
+        #   # optional sanity check - will stop early if something is wrong
+        #   for (i in seq_along(distr)) {
+        #     for (j in seq_along(distr[[i]])) {
+        #       if (!is.list(distr[[i]][[j]]) || is.null(distr[[i]][[j]]$p)) {
+        #         stop(sprintf("Sanity check failed: distr[[%d]][[%d]] not a funlist", i, j), call. = FALSE)
+        #       }
+        #     }
+        #   }
+
+        #   # -------------------------------------------------
+        #   # Build global system LSF g_sys
+        #   # -------------------------------------------------
+        #   if (is_system) {
+        #     g_sys <- function(x) {
+        #       # -------------------------------------------------
+        #       # Evaluate all individual limit-state functions
+        #       # -------------------------------------------------
+        #       g_vals <- numeric(length(lsfs))
+
+        #       k <- 1
+        #       for (i in seq_along(lsfs)) {
+        #         n_var_i <- length(sys_input[[i]]$vars)
+        #         g_vals[i] <- lsfs[[i]](x[k:(k + n_var_i - 1)])
+        #         k <- k + n_var_i
+        #       }
+
+        #       # -------------------------------------------------
+        #       # Determine system aggregation structure
+        #       # -------------------------------------------------
+
+        #       structure_type <- .self$sys_structure
+
+        #       # -------------------------------------------------
+        #       # Case 1: Custom function
+        #       # -------------------------------------------------
+        #       if (is.function(structure_type)) {
+        #         return(structure_type(g_vals))
+        #       }
+
+        #       # -------------------------------------------------
+        #       # Case 2: Character system structure
+        #       # -------------------------------------------------
+        #       if (is.character(structure_type) && length(structure_type) == 1L) {
+        #         if (structure_type == "serial") {
+        #           return(smooth_min(g_vals, .self$smooth_kappa))
+        #         }
+
+        #         if (structure_type == "parallel") {
+        #           return(smooth_max(g_vals, .self$smooth_kappa))
+        #         }
+
+        #         stop(sprintf(
+        #           "Unsupported character system structure: '%s'",
+        #           structure_type
+        #         ))
+        #       }
+
+        #       # -------------------------------------------------
+        #       # Case 3: Fallback to sys_type
+        #       # -------------------------------------------------
+        #       sys_type_local <- .self$sys_type
+
+        #       if (is.character(sys_type_local) && length(sys_type_local) == 1L) {
+        #         if (sys_type_local == "serial") {
+        #           return(smooth_min(g_vals, .self$smooth_kappa))
+        #         }
+
+        #         if (sys_type_local == "parallel") {
+        #           return(smooth_max(g_vals, .self$smooth_kappa))
+        #         }
+        #       }
+
+        #       # -------------------------------------------------
+        #       # Final fallback (legacy default)
+        #       # -------------------------------------------------
+        #       return(smooth_min(g_vals, .self$smooth_kappa))
+        #     }
+        #   }
+
+        #   # -------------------------------------------------
+        #   # Flatten distribution list for global LSF
+        #   # -------------------------------------------------
+
+        #   distr_flat <- list()
+
+        #   for (i in seq_along(distr)) {
+        #     for (j in seq_along(distr[[i]])) {
+        #       distr_flat[[length(distr_flat) + 1]] <- distr[[i]][[j]]
+        #     }
+        #   }
+
+        #   # ---------------------------------------------------------------
+        #   # 2) Pull the optional entries from `params` (if they exist)
+        #   # ---------------------------------------------------------------
+        #   seed_val <- if (!is.null(params$seed)) params$seed else NULL
+        #   backend_val <- if (!is.null(params$backend)) params$backend else "future"
+        #   dataRecord_val <- if (!is.null(params$dataRecord)) params$dataRecord else FALSE
+
+        #   ## -------------------------------------------------
+        #   ## 3) Gather *all* arguments for MC_IS
+        #   ## -------------------------------------------------
+        #   ## a) The arguments that are always required (hard-coded)
+        #   # base_args <- list(
+        #   #   lsf = lsfs,
+        #   #   lDistr = distr,
+        #   #   sys_type = sys_type,
+        #   #   cov_user = cov_user,
+        #   #   n_batch = n_batch,
+        #   #   n_max = n_max,
+        #   #   use_threads = use_threads,
+        #   #   beta_l = beta_l,
+        #   #   densityType = densityType,
+        #   #   dps = dps,
+        #   #   debug.level = debug.level,
+        #   #   seed = seed_val,
+        #   #   backend = backend_val, # fallback, wenn nicht angegeben
+        #   #   dataRecord = dataRecord_val
+        #   # )
+
+        #   # if (is_system) {
+        #   #   lsf_arg <- g_sys
+        #   #   lDistr_arg <- distr_flat
+        #   # } else {
+        #   #   lsf_arg <- lsfs[[1]]
+        #   #   lDistr_arg <- distr[[1]]
+        #   # }
+
+        #   if (is_system) {
+        #     if (system_method == "multimodal") {
+        #       # true system reliability
+        #       lsf_arg <- lsfs
+        #       lDistr_arg <- distr
+        #     } else if (system_method == "smooth") {
+        #       # smooth aggregation
+        #       lsf_arg <- g_sys
+        #       lDistr_arg <- distr_flat
+        #     } else {
+        #       stop("Unknown system_method. Use 'multimodal' or 'smooth'.", call. = FALSE)
+        #     }
+        #   } else {
+        #     lsf_arg <- lsfs[[1]]
+        #     lDistr_arg <- distr[[1]]
+        #   }
+
+        #   base_args <- list(
+        #     lsf = lsf_arg,
+        #     lDistr = lDistr_arg,
+        #     cov_user = cov_user,
+        #     n_batch = n_batch,
+        #     n_max = n_max,
+        #     use_threads = use_threads,
+        #     beta_l = beta_l,
+        #     densityType = densityType,
+        #     dps = dps,
+        #     debug.level = .self$debug.level,
+        #     seed = seed_val,
+        #     backend = backend_val,
+        #     dataRecord = dataRecord_val
+        #   )
+
+        #   ## b) Append the user-supplied options (the content of `params`)
+        #   ##    - but only keep those names that really exist in MC_IS
+        #   ##    (otherwise `do.call` would fail with unused argument).
+        #   ##    `formals(MC_IS)` returns the vector of formal argument names.
+        #   mc_formals <- names(formals(TesiproV::MC_IS))
+
+        #   ## keep only entries whose name appears in the formal list
+        #   user_args <- params[
+        #     (names(params) %in% mc_formals) & # a) valid for MC_IS
+        #       !(names(params) %in% names(base_args)) # b) not duplicate
+        #   ]
+
+        #   ## c) Final argument list -> base args + (filtered) user args
+        #   mc_args <- c(base_args, user_args)
+
+        #   ## -------------------------------------------------
+        #   ## 3) Call the Monte-Carlo routine
+        #   ## -------------------------------------------------
+        #   if (debug.level >= 2) {
+        #     message("Calling MC_IS_system with:")
+        #     print(names(mc_args))
+        #   }
+
+        #   # Ensure debug.level is always forwarded explicitly
+        #   mc_args$debug.level <- debug.level
+
+        #   res <- do.call(TesiproV::MC_IS, mc_args)
+
+        #   ## -------------------------------------------------
+        #   ## 4) Store the result (unchanged)
+        #   ## -------------------------------------------------
+        #   if (nrow(beta_sys) < 1) {
+        #     beta_sys <<- matrix(nrow = 1, ncol = 1)
+        #     beta_sys[1, 1] <<- res$beta
+        #     rownames(beta_sys) <<- "MC IS"
+        #   } else {
+        #     beta_sys <<- rbind(beta_sys, "MC IS" = res$beta)
+        #   }
+        #   res_sys[[length(res_sys) + 1]] <<- res
+        #   ## MC_CRUDE
       } else if (calcType == "MCC" | calcType == "MCSUS") {
         lsfs <- list()
         distr <- list()
@@ -1325,34 +1613,32 @@ PROB_BASEVAR <- setRefClass(
             args = list(n = x, obs = DistributionParameters)
           )
         }
-      }
-      else if (DistributionType == "slnorm") {
+      } else if (DistributionType == "slnorm") {
         d_fun <- function(x) {
           do.call("dshifted_lnorm",
-                  envir = loadNamespace("brms"),
-                  c(list(x), as.list(DistributionParameters))
+            envir = loadNamespace("brms"),
+            c(list(x), as.list(DistributionParameters))
           )
         }
         p_fun <- function(x) {
           do.call("pshifted_lnorm",
-                  envir = loadNamespace("brms"),
-                  c(list(x), as.list(DistributionParameters))
+            envir = loadNamespace("brms"),
+            c(list(x), as.list(DistributionParameters))
           )
         }
         q_fun <- function(x) {
           do.call("qshifted_lnorm",
-                  envir = loadNamespace("brms"),
-                  c(list(x), as.list(DistributionParameters))
+            envir = loadNamespace("brms"),
+            c(list(x), as.list(DistributionParameters))
           )
         }
         r_fun <- function(x) {
           do.call("rshifted_lnorm",
-                  envir = loadNamespace("brms"),
-                  c(list(x), as.list(DistributionParameters))
+            envir = loadNamespace("brms"),
+            c(list(x), as.list(DistributionParameters))
           )
         }
-      }
-      else if (DistributionType == "st" || DistributionType == "lt") {
+      } else if (DistributionType == "st" || DistributionType == "lt") {
         d_fun <- function(x) {
           do.call(paste0("d", DistributionType),
             envir = loadNamespace(Package),
@@ -1377,8 +1663,7 @@ PROB_BASEVAR <- setRefClass(
             args = list(n_vals = x, hyper.param = DistributionParameters)
           )
         }
-      }
-      else {
+      } else {
         d_fun <- function(x) {
           do.call(paste0("d", DistributionType),
             envir = loadNamespace(Package),
@@ -1457,8 +1742,8 @@ PROB_BASEVAR <- setRefClass(
               stop("For shifted lognormal distribution: Mean must be larger than x0.")
             }
             mx <- Mean
-            sn <- sqrt(log(1 + (Sd /(mx-x0))^2))
-            mn <- log((mx-x0) / sqrt(1 + (Sd / (mx-x0))^2))
+            sn <- sqrt(log(1 + (Sd / (mx - x0))^2))
+            mn <- log((mx - x0) / sqrt(1 + (Sd / (mx - x0))^2))
             DistributionParameters[1] <<- mn
             DistributionParameters[2] <<- sn
             DistributionParameters[3] <<- x0
@@ -1550,7 +1835,7 @@ PROB_BASEVAR <- setRefClass(
             sn <- DistributionParameters[2]
             x0 <<- DistributionParameters[3]
             m <- x0 + exp(mn + (sn^2) / 2)
-            s <- exp(mn + (sn^2) / 2) * sqrt(exp(sn^2)-1)
+            s <- exp(mn + (sn^2) / 2) * sqrt(exp(sn^2) - 1)
             Cov <<- ifelse(m == 0, 0, s / m)
             Sd <<- s
             Mean <<- m
@@ -1830,4 +2115,61 @@ ensure_pkg <- function(pkg) {
     )
   }
   invisible(TRUE)
+}
+
+
+#' Smooth approximation of the minimum function
+#'
+#' Computes a differentiable approximation of \code{min(x)}
+#' using a log-sum-exp formulation:
+#'
+#' \deqn{
+#'   \min(x) \approx -\frac{1}{\kappa} \log\left( \sum_i e^{-\kappa x_i} \right)
+#' }
+#'
+#' The approximation becomes exact as \code{kappa → ∞}.
+#'
+#' @param x Numeric vector.
+#' @param kappa Positive smoothing parameter controlling
+#'   the sharpness of the approximation (default = 20).
+#'
+#' @return Numeric scalar.
+#'
+#' @details
+#' This function is used internally for smooth system
+#' limit-state aggregation (serial systems) to improve
+#' numerical stability and differentiability.
+#'
+#' @keywords internal
+#' @noRd
+smooth_min <- function(x, kappa = 20) {
+  -log(sum(exp(-kappa * x))) / kappa
+}
+
+#' Smooth approximation of the maximum function
+#'
+#' Computes a differentiable approximation of \code{max(x)}
+#' using a log-sum-exp formulation:
+#'
+#' \deqn{
+#'   \max(x) \approx \frac{1}{\kappa} \log\left( \sum_i e^{\kappa x_i} \right)
+#' }
+#'
+#' The approximation becomes exact as \code{kappa → ∞}.
+#'
+#' @param x Numeric vector.
+#' @param kappa Positive smoothing parameter controlling
+#'   the sharpness of the approximation (default = 20).
+#'
+#' @return Numeric scalar.
+#'
+#' @details
+#' This function is used internally for smooth system
+#' limit-state aggregation (parallel systems) to improve
+#' numerical stability and differentiability.
+#'
+#' @keywords internal
+#' @noRd
+smooth_max <- function(x, kappa = 20) {
+  log(sum(exp(kappa * x))) / kappa
 }

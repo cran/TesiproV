@@ -38,7 +38,7 @@ NULL
 #'         as required by [parallel::clusterSetRNGStream()] or usable
 #'         directly in [future.apply::future_lapply()].
 #'
-## @keywords internal
+#' @keywords internal
 init_rng_master <- function(seed = NULL, debug.level = 0) {
   RNGkind("L'Ecuyer-CMRG")
 
@@ -274,7 +274,8 @@ parallel_dispatch <- function(chunk_indices,
 #'   reliability problems. The \code{"robust"} mode is recommended
 #'   for research applications and extreme reliability levels.
 #'
-
+#' @keywords internal
+#'
 MC_IS_single <- function(lsf, lDistr,
                          cov_user,
                          n_batch,
@@ -295,7 +296,14 @@ MC_IS_single <- function(lsf, lDistr,
                          min_adapt_samples = 10000,
                          alpha_min = 0.02,
                          stability_mode) {
+  if (debug.level >= 1) {
+    cat("DEBUG LEVEL INSIDE MC_IS_single:", debug.level, "\n")
+  }
+
   ## --- Input validation ------------------------------------------------------
+  if (missing(debug.level) || is.null(debug.level)) {
+    debug.level <- 0
+  }
   if (!is.function(lsf)) {
     stop("MC_IS_single: 'lsf' must be a function.", call. = FALSE)
   }
@@ -317,37 +325,56 @@ MC_IS_single <- function(lsf, lDistr,
   debug.TAG <- "MC_IS_single"
   if (debug.level >= 1) message("[MC_IS_single] Starting single-LSF MC_IS...")
 
-  ## Master RNG / seed handling
-  RNGkind("L'Ecuyer-CMRG")
+  ## -------------------------------------------------
+  ## Deterministic RNG manager (thread-independent)
+  ## -------------------------------------------------
+  rng_mgr <- create_rng_manager(seed)
 
-  # Normalise seed for future.apply and cluster
-  seed_for_future <- NULL # integer or 7-length stream or NULL
-  streams_master <- NULL # 7-length stream (for parallel::clusterSetRNGStream)
+  ## -------------------------------------------------
+  ## Persistent cluster setup (parallel backend)
+  ## -------------------------------------------------
+  cl <- NULL
 
-  if (!is.null(seed)) {
-    if (is.numeric(seed) && length(seed) == 1L && !is.na(seed)) {
-      # integer seed -> reproducible for future.apply
-      set.seed(as.integer(seed))
-      # derive a full CMRG stream for cluster backend if needed
-      streams_master <- parallel::nextRNGStream(.Random.seed)
-      seed_for_future <- as.integer(seed)
-      if (debug.level >= 1) message(sprintf("[MC_IS_single] Fixed master seed set to %d", as.integer(seed)))
-    } else if (is.numeric(seed) && length(seed) == 7L) {
-      # user supplied full L'Ecuyer stream
-      # assign(".Random.seed", seed, envir = .GlobalEnv)
-      set.seed(seed)
-      streams_master <- seed
-      seed_for_future <- seed
-      if (debug.level >= 1) message("[MC_IS_single] Using supplied L'Ecuyer-CMRG stream.")
-    } else {
-      stop("Seed must be a single integer or a L'Ecuyer-CMRG stream (length 7).", call. = FALSE)
-    }
-  } else {
-    # no fixed seed -> random behaviour; for future.apply use future.seed = TRUE (resolve_future_seed(NULL) -> TRUE)
-    streams_master <- parallel::nextRNGStream(.Random.seed)
-    seed_for_future <- NULL
-    if (debug.level >= 1) message("[MC_IS_single] No fixed seed supplied; using random streams.")
+  if (backend == "parallel" && use_threads > 1L) {
+    cl <- make_parallel_cluster(
+      use_threads = use_threads,
+      seed = seed
+    )
+
+    on.exit(parallel::stopCluster(cl), add = TRUE)
   }
+
+  # ## Master RNG / seed handling
+  # RNGkind("L'Ecuyer-CMRG")
+
+  # # Normalise seed for future.apply and cluster
+  # seed_for_future <- NULL # integer or 7-length stream or NULL
+  # streams_master <- NULL # 7-length stream (for parallel::clusterSetRNGStream)
+
+  # if (!is.null(seed)) {
+  #   if (is.numeric(seed) && length(seed) == 1L && !is.na(seed)) {
+  #     # integer seed -> reproducible for future.apply
+  #     set.seed(as.integer(seed))
+  #     # derive a full CMRG stream for cluster backend if needed
+  #     streams_master <- parallel::nextRNGStream(.Random.seed)
+  #     seed_for_future <- as.integer(seed)
+  #     if (debug.level >= 1) message(sprintf("[MC_IS_single] Fixed master seed set to %d", as.integer(seed)))
+  #   } else if (is.numeric(seed) && length(seed) == 7L) {
+  #     # user supplied full L'Ecuyer stream
+  #     # assign(".Random.seed", seed, envir = .GlobalEnv)
+  #     set.seed(seed)
+  #     streams_master <- seed
+  #     seed_for_future <- seed
+  #     if (debug.level >= 1) message("[MC_IS_single] Using supplied L'Ecuyer-CMRG stream.")
+  #   } else {
+  #     stop("Seed must be a single integer or a L'Ecuyer-CMRG stream (length 7).", call. = FALSE)
+  #   }
+  # } else {
+  #   # no fixed seed -> random behaviour; for future.apply use future.seed = TRUE (resolve_future_seed(NULL) -> TRUE)
+  #   streams_master <- parallel::nextRNGStream(.Random.seed)
+  #   seed_for_future <- NULL
+  #   if (debug.level >= 1) message("[MC_IS_single] No fixed seed supplied; using random streams.")
+  # }
 
   ## Gueltige density-Typen - origin bedeutet: die originale Eingabeverteilung
   ## (aus dem Paket, das im PROB_BASEVAR definiert ist) wird verwendet.
@@ -422,7 +449,35 @@ MC_IS_single <- function(lsf, lDistr,
     })
 
     # Now call FORM with wrapper:
-    res_form <- TesiproV::FORM(lsf, lDistr_for_FORM, n_optim = 20, loctol = 1e-4)
+    # res_form <- TesiproV::FORM(lsf, lDistr_for_FORM, n_optim = 20, loctol = 1e-4)
+
+    # -------------------------------------------------
+    # Check if LSF is valid at starting point
+    # -------------------------------------------------
+
+    x_test <- sapply(lDistr_for_FORM, function(d) d[[1]]$mean)
+
+    g_test <- try(lsf(x_test), silent = TRUE)
+
+    if (inherits(g_test, "try-error") || !is.finite(g_test)) {
+      if (debug.level >= 1) {
+        message("[MC_IS_single] FORM skipped: invalid LSF start value")
+      }
+
+      res_form <- list(
+        beta = NA_real_,
+        pf = NA_real_,
+        x_points = x_test
+      )
+    } else {
+      res_form <- TesiproV::FORM(
+        lsf,
+        lDistr_for_FORM,
+        n_optim = 20,
+        loctol = 1e-4
+      )
+    }
+
     if (is.null(res_form$x_points) || length(res_form$x_points) == 0L) {
       stop("[MC_IS_single] FORM did not return valid design point x_points.", call. = FALSE)
     }
@@ -482,9 +537,13 @@ MC_IS_single <- function(lsf, lDistr,
   # Stabilized design-point shift
   # ------------------------------------------------------------
 
-  shift_damping <- min(1, 5 / sqrt(length(dp)))
+  ### To do: implement switch use_shift_damping, but default = FALSE
 
-  dp <- shift_damping * dp
+  ### shift_damping <- min(1, 5 / sqrt(length(dp)))
+
+  ### dp <- shift_damping * dp
+
+  dp <- dp
 
   # ---------------------------------------------------------------------------
   # Detect whether LSF supports vectorized matrix input
@@ -534,16 +593,31 @@ MC_IS_single <- function(lsf, lDistr,
     # Transform u -> x (vectorized)
     # --------------------------------------------------
 
-    p_mat <- pnorm(u_mat)
-    p_mat <- pmin(pmax(p_mat, 1e-12), 1 - 1e-12)
+    # code is slow
+    # p_mat <- pnorm(u_mat)
+    # p_mat <- pmin(pmax(p_mat, 1e-14), 1 - 1e-14)
 
+    # q_list <- lapply(lDistr, function(d) d$q)
+
+    # x_mat <- matrix(NA_real_, n_local, n_vars)
+
+    # for (j in seq_len(n_vars)) {
+    #   x_mat[, j] <- q_list[[j]](p_mat[, j])
+    # }
+
+    # Fix
     q_list <- lapply(lDistr, function(d) d$q)
 
-    x_mat <- matrix(NA_real_, n_local, n_vars)
+    x_cols <- vector("list", n_vars)
 
     for (j in seq_len(n_vars)) {
-      x_mat[, j] <- q_list[[j]](p_mat[, j])
+      p <- pnorm(u_mat[, j])
+      p <- pmin(pmax(p, 1e-14), 1 - 1e-14)
+
+      x_cols[[j]] <- q_list[[j]](p)
     }
+
+    x_mat <- do.call(cbind, x_cols)
 
     # --------------------------------------------------
     # log phi(u)  (standard normal)
@@ -552,20 +626,20 @@ MC_IS_single <- function(lsf, lDistr,
     log_phi <- -0.5 * rowSums(u_mat^2) -
       0.5 * n_vars * log(2 * pi)
 
-    # --------------------------------------------------
-    # log f(x)
-    # --------------------------------------------------
+    # # --------------------------------------------------
+    # # log f(x) (joint density in x-space)
+    # # --------------------------------------------------
 
-    d_list <- lapply(lDistr, function(d) d$d)
+    # d_list <- lapply(lDistr, function(d) d$d)
 
-    log_fx_mat <- matrix(0, n_local, n_vars)
+    # log_fx_mat <- matrix(0, n_local, n_vars)
 
-    for (j in seq_len(n_vars)) {
-      dens_vals <- d_list[[j]](x_mat[, j])
-      log_fx_mat[, j] <- log(pmax(dens_vals, .Machine$double.xmin))
-    }
+    # for (j in seq_len(n_vars)) {
+    #   dens_vals <- d_list[[j]](x_mat[, j])
+    #   log_fx_mat[, j] <- log(pmax(dens_vals, .Machine$double.xmin))
+    # }
 
-    log_fx <- rowSums(log_fx_mat)
+    # log_fx <- rowSums(log_fx_mat)
 
     # --------------------------------------------------
     # log h(u)  (shifted normal N(dp, I))
@@ -582,10 +656,19 @@ MC_IS_single <- function(lsf, lDistr,
       0.5 * n_vars * log(2 * pi)
 
     # --------------------------------------------------
-    # log weights
+    # log weights (Importance sampling weights)
     # --------------------------------------------------
-    log_w <- log_fx - log_h
+    # log_w <- log_fx - log_h
+    log_w <- log_phi - log_h
+    # numerical safety
     log_w[!is.finite(log_w)] <- -Inf
+
+    # cat("mean(exp(log_fx - log_phi)) =", mean(exp(log_fx - log_phi)), "\n")
+
+    # debug print
+    # cat("mean(log_w) =", mean(log_w), "\n")
+    # cat("var(log_w)  =", var(log_w), "\n")
+    # cat("mean(w) =", mean(exp(log_w)), "\n")
 
     # --------------------------------------------------
     # Vectorized LSF evaluation
@@ -600,95 +683,112 @@ MC_IS_single <- function(lsf, lDistr,
       g_vals <- apply(x_mat, 1, lsf)
     }
 
-    I_vals <- as.numeric(g_vals < 0)
+    I_vals <- as.numeric(g_vals <= 0)
+
+    # Debug print
+    # cat("mean(I*w) =", mean(exp(log_w) * I_vals), "\n")
+    # cat("mean(u_mat) =", colMeans(u_mat), "\n")
+
+    # list(
+    #   log_w  = log_w,
+    #   I_vals = I_vals
+    # )
+
+    w <- exp(log_w)
+
+    sum_Iw <- sum(I_vals * w)
+    sum_w <- sum(w)
+    sum_w2 <- sum(w * w)
 
     list(
-      log_w  = log_w,
-      I_vals = I_vals
+      sum_Iw = sum_Iw,
+      sum_w  = sum_w,
+      sum_w2 = sum_w2,
+      n      = length(w)
     )
   }
 
-  ## ---- Cluster setup --------------------------------------------------------
-  cl <- NULL # Platzhalter, falls kein Cluster gebraucht wird
+  # ## ---- Cluster setup --------------------------------------------------------
+  # cl <- NULL # Platzhalter, falls kein Cluster gebraucht wird
 
-  ## ---- 1a. Seed fuer den Cluster bestimmen -------------------------------
-  ## `streams` ist der Vektor, den `init_rng_master()` zurueckgegeben hat.
-  ## Das erste Element ist ein gueltiger Integer-Seed.
-  ## seed_used <- as.integer(streams[1])
+  # ## ---- 1a. Seed fuer den Cluster bestimmen -------------------------------
+  # ## `streams` ist der Vektor, den `init_rng_master()` zurueckgegeben hat.
+  # ## Das erste Element ist ein gueltiger Integer-Seed.
+  # ## seed_used <- as.integer(streams[1])
 
-  # streams <- init_rng_master(NULL)    # NULL -> neuer zufaelliger Seed pro Aufruf
-  # seed_used <- as.integer(streams[1])
+  # # streams <- init_rng_master(NULL)    # NULL -> neuer zufaelliger Seed pro Aufruf
+  # # seed_used <- as.integer(streams[1])
 
-  ## -------------------------------------------------------------------------
-  ## 2) Wahl des Parallel-Backends
-  ## -------------------------------------------------------------------------
-  if (backend == "parallel" && Sys.info()[["sysname"]] != "Windows") {
-    ## --- RNG-Stream vorbereiten --------------------------------------------
-    ## Fuer das Parallel-Backend brauchen wir den vollstaendigen CMRG-Stream
-    if (is.null(streams_master)) streams_master <- parallel::nextRNGStream(.Random.seed)
+  # ## -------------------------------------------------------------------------
+  # ## 2) Wahl des Parallel-Backends
+  # ## -------------------------------------------------------------------------
+  # if (backend == "parallel" && Sys.info()[["sysname"]] != "Windows") {
+  #   ## --- RNG-Stream vorbereiten --------------------------------------------
+  #   ## Fuer das Parallel-Backend brauchen wir den vollstaendigen CMRG-Stream
+  #   if (is.null(streams_master)) streams_master <- parallel::nextRNGStream(.Random.seed)
 
-    cl <- make_ready_cluster(
-      use_threads = use_threads,
-      libPaths_local = libPaths_local,
-      seed = streams_master,
-      export_objs = c(
-        "libPaths_local", "mc_local", "lsf", "lDistr", "dp",
-        "n_batch", "densityType", "n_vars"
-      ),
-      debug.level = debug.level
-    )
+  #   cl <- make_ready_cluster(
+  #     use_threads = use_threads,
+  #     libPaths_local = libPaths_local,
+  #     seed = streams_master,
+  #     export_objs = c(
+  #       "libPaths_local", "mc_local", "lsf", "lDistr", "dp",
+  #       "n_batch", "densityType", "n_vars"
+  #     ),
+  #     debug.level = debug.level
+  #   )
 
-    on.exit(parallel::stopCluster(cl), add = TRUE)
-  } else if (backend == "future") {
-    if (!requireNamespace("future", quietly = TRUE)) {
-      stop("Package 'future' needed for backend = 'future'", call. = FALSE)
-    }
+  #   on.exit(parallel::stopCluster(cl), add = TRUE)
+  # } else if (backend == "future") {
+  #   if (!requireNamespace("future", quietly = TRUE)) {
+  #     stop("Package 'future' needed for backend = 'future'", call. = FALSE)
+  #   }
 
-    if (!requireNamespace("future.apply", quietly = TRUE)) {
-      stop("Package 'future.apply' needed for backend = 'future'", call. = FALSE)
-    }
+  #   if (!requireNamespace("future.apply", quietly = TRUE)) {
+  #     stop("Package 'future.apply' needed for backend = 'future'", call. = FALSE)
+  #   }
 
-    # ------------------------------------------------------------
-    # CRAN-conform future handling
-    # ------------------------------------------------------------
-    # Save current plan
-    old_plan <- future::plan()
+  #   # ------------------------------------------------------------
+  #   # CRAN-conform future handling
+  #   # ------------------------------------------------------------
+  #   # Save current plan
+  #   old_plan <- future::plan()
 
-    # Restore original plan when function exits
-    on.exit(
-      {
-        future::plan(old_plan)
-      },
-      add = TRUE
-    )
+  #   # Restore original plan when function exits
+  #   on.exit(
+  #     {
+  #       future::plan(old_plan)
+  #     },
+  #     add = TRUE
+  #   )
 
-    # Only set a parallel plan if the user did not already set one
-    if (inherits(old_plan, "sequential") && use_threads > 1) {
-      if (.Platform$OS.type == "windows") {
-        future::plan(future::multisession,
-          workers = use_threads
-        )
-      } else {
-        future::plan(future::multicore,
-          workers = use_threads
-        )
-      }
+  #   # Only set a parallel plan if the user did not already set one
+  #   if (inherits(old_plan, "sequential") && use_threads > 1) {
+  #     if (.Platform$OS.type == "windows") {
+  #       future::plan(future::multisession,
+  #         workers = use_threads
+  #       )
+  #     } else {
+  #       future::plan(future::multicore,
+  #         workers = use_threads
+  #       )
+  #     }
 
-      if (debug.level >= 1) {
-        message(sprintf(
-          "[MC_IS_single] Temporary future plan set with %d workers.",
-          use_threads
-        ))
-      }
-    } else {
-      if (debug.level >= 1) {
-        message("[MC_IS_single] Using existing future plan (no override).")
-      }
-    }
-  } else {
-    # stop("Unsupported backend")
-    if (backend != "parallel" && backend != "future") stop("Unsupported backend", call. = FALSE)
-  }
+  #     if (debug.level >= 1) {
+  #       message(sprintf(
+  #         "[MC_IS_single] Temporary future plan set with %d workers.",
+  #         use_threads
+  #       ))
+  #     }
+  #   } else {
+  #     if (debug.level >= 1) {
+  #       message("[MC_IS_single] Using existing future plan (no override).")
+  #     }
+  #   }
+  # } else {
+  #   # stop("Unsupported backend")
+  #   if (backend != "parallel" && backend != "future") stop("Unsupported backend", call. = FALSE)
+  # }
 
   ## -------------------------------------------------------------------------
   ## 3. Monte-Carlo-Loop (identisch fuer beide Back-ends)
@@ -730,9 +830,22 @@ MC_IS_single <- function(lsf, lDistr,
     # ============================================================
 
     # 1) Generate ALL samples in one deterministic block
-    u_mat <- matrix(rnorm(total_batch * n_vars),
-      ncol = n_vars
-    )
+    # u_mat <- matrix(rnorm(total_batch * n_vars),
+    #   ncol = n_vars
+    # )
+    if (debug.level >= 1) {
+      t_sample_start <- proc.time()
+    }
+    ## -------------------------------------------------
+    ## Deterministic sampling block (thread independent)
+    ## -------------------------------------------------
+    u_vec <- rng_mgr$generate_norm_block(total_batch * n_vars)
+
+    u_mat <- matrix(u_vec, ncol = n_vars)
+
+    if (debug.level >= 1) {
+      t_sample <- (proc.time() - t_sample_start)[3]
+    }
 
     ### cat(
     ###   "After sampling RNG head:",
@@ -743,15 +856,24 @@ MC_IS_single <- function(lsf, lDistr,
     u_mat <- sweep(u_mat, 2, dp, "+")
 
     # 2) Deterministic split into worker chunks
-    if (use_threads <= 1) {
+    # if (use_threads <= 1) {
+    #   chunk_indices <- list(seq_len(total_batch))
+    # } else {
+    #   chunk_indices <- split(
+    #     seq_len(total_batch),
+    #     cut(seq_len(total_batch),
+    #       breaks = use_threads,
+    #       labels = FALSE
+    #     )
+    #   )
+    # }
+
+    if (use_threads == 1) {
       chunk_indices <- list(seq_len(total_batch))
     } else {
       chunk_indices <- split(
         seq_len(total_batch),
-        cut(seq_len(total_batch),
-          breaks = use_threads,
-          labels = FALSE
-        )
+        cut(seq_len(total_batch), breaks = use_threads)
       )
     }
 
@@ -766,79 +888,120 @@ MC_IS_single <- function(lsf, lDistr,
       mc_local(u_mat[idx, , drop = FALSE])
     }
 
-    # 4) Parallel evaluation (RNG disabled!)
-    if (use_threads == 1) {
-      res_list <- lapply(chunk_indices, worker_fun)
-    } else if (backend == "parallel") {
-      if (.Platform$OS.type == "windows") {
-        res_list <- lapply(chunk_indices, worker_fun)
-      } else {
-        res_list <- parallel::parLapply(
-          cl,
-          chunk_indices,
-          worker_fun
-        )
-      }
-    } else if (backend == "future") {
-      res_list <- future.apply::future_lapply(
-        chunk_indices,
-        worker_fun,
-        future.seed = FALSE,
-        future.globals = FALSE # CRITICAL
-      )
+    # # 4) Parallel evaluation (RNG disabled!)
+    # if (use_threads == 1) {
+    #   res_list <- lapply(chunk_indices, worker_fun)
+    # } else if (backend == "parallel") {
+    #   if (.Platform$OS.type == "windows") {
+    #     res_list <- lapply(chunk_indices, worker_fun)
+    #   } else {
+    #     res_list <- parallel::parLapply(
+    #       cl,
+    #       chunk_indices,
+    #       worker_fun
+    #     )
+    #   }
+    # } else if (backend == "future") {
+    #   res_list <- future.apply::future_lapply(
+    #     chunk_indices,
+    #     worker_fun,
+    #     future.seed = FALSE,
+    #     future.globals = FALSE # CRITICAL
+    #   )
+    # }
+    if (debug.level >= 1) {
+      t_parallel_start <- proc.time()
+    }
+    ## -------------------------------------------------
+    ## Unified parallel evaluation (no RNG in workers)
+    ## -------------------------------------------------
+    # res_list <- run_parallel(
+    #   X = seq_len(use_threads),
+    #   FUN = function(worker_id) {
+    #     idx <- chunk_indices[[worker_id]]
+    #     worker_fun(idx)
+    #   },
+    #   backend = backend,
+    #   use_threads = use_threads,
+    #   seed = NULL # IMPORTANT: workers must not use RNG
+    # )
+    res_list <- run_parallel(
+      X = chunk_indices,
+      FUN = function(idx) {
+        mc_local(u_mat[idx, , drop = FALSE])
+      },
+      backend = backend,
+      use_threads = use_threads,
+      cl = cl
+    )
+
+    if (debug.level >= 1) {
+      t_parallel <- (proc.time() - t_parallel_start)[3]
     }
 
-    # --- 3b. Aufsummieren ---------------------------------------------------------
-    all_log_w <- unlist(lapply(res_list, `[[`, "log_w"))
-    all_I_vals <- unlist(lapply(res_list, `[[`, "I_vals"))
+    if (debug.level >= 1) {
+      cat(sprintf(
+        "Sampling: %.3f s | Parallel: %.3f s\n",
+        t_sample, t_parallel
+      ))
+    }
+
+    # --- 3b. Aggregation ---------------------------------------------------------
+    # all_log_w <- unlist(lapply(res_list, `[[`, "log_w"))
+    # all_I_vals <- unlist(lapply(res_list, `[[`, "I_vals"))
+    sum_Iw_iter <- sum(sapply(res_list, `[[`, "sum_Iw"))
+    sum_w_iter <- sum(sapply(res_list, `[[`, "sum_w"))
+    sum_w2_iter <- sum(sapply(res_list, `[[`, "sum_w2"))
+    n_iter <- sum(sapply(res_list, `[[`, "n"))
 
     # --------------------------------------------------------
     # FAST MODE
     # --------------------------------------------------------
-    if (stability_mode == "fast") {
-      max_log_w <- max(all_log_w)
-      w_all <- exp(all_log_w - max_log_w)
+    # if (stability_mode == "fast") {
+    #   max_log_w <- max(all_log_w)
+    #   w_all <- exp(all_log_w - max_log_w)
 
-      # accumulate using base sum (fast, stable enough here)
-      sum_w_iter <- sum(w_all)
-      sum_Iw_iter <- sum(w_all[all_I_vals == 1])
+    #   # accumulate using base sum (fast, stable enough here)
+    #   sum_w_iter <- sum(w_all)
+    #   sum_Iw_iter <- sum(w_all[all_I_vals == 1])
 
-      # second moment for ESS
-      sum_w2_iter <- sum(w_all * w_all)
-    }
+    #   # second moment for ESS
+    #   sum_w2_iter <- sum(w_all * w_all)
+    # }
 
-    # --------------------------------------------------------
-    # ROBUST MODE (numerically stable weight accumulation)
-    # --------------------------------------------------------
-    if (stability_mode == "robust") {
-      # Compute global shift (log-sum-exp reference)
-      # This prevents overflow when exponentiating large log-weights
-      max_log_w <- max(all_log_w)
+    # # --------------------------------------------------------
+    # # ROBUST MODE (numerically stable weight accumulation)
+    # # --------------------------------------------------------
+    # if (stability_mode == "robust") {
+    #   # Compute global shift (log-sum-exp reference)
+    #   # This prevents overflow when exponentiating large log-weights
+    #   max_log_w <- max(all_log_w)
 
-      # Shift log-weights before exponentiation
-      # This is mathematically equivalent to fast-mode scaling
-      shifted_weights <- exp(all_log_w - max_log_w)
+    #   # Shift log-weights before exponentiation
+    #   # This is mathematically equivalent to fast-mode scaling
+    #   shifted_weights <- exp(all_log_w - max_log_w)
 
-      # First moment: sum of weights
-      sum_w_iter <- sum(shifted_weights)
+    #   # First moment: sum of weights
+    #   sum_w_iter <- sum(shifted_weights)
 
-      # Weighted failure indicator
-      if (any(all_I_vals == 1)) {
-        sum_Iw_iter <- sum(shifted_weights[all_I_vals == 1])
-      } else {
-        sum_Iw_iter <- 0
-      }
+    #   # Weighted failure indicator
+    #   if (any(all_I_vals == 1, na.rm = TRUE)) {
+    #     sum_Iw_iter <- sum(shifted_weights[all_I_vals == 1])
+    #   } else {
+    #     sum_Iw_iter <- 0
+    #   }
 
-      # Second moment: required for ESS computation
-      sum_w2_iter <- sum(shifted_weights * shifted_weights)
-    }
+    #   # Second moment: required for ESS computation
+    #   sum_w2_iter <- sum(shifted_weights * shifted_weights)
+    # }
 
     # global accumulation
     total_sum_w <- total_sum_w + sum_w_iter
     total_sum_Iw <- total_sum_Iw + sum_Iw_iter
     total_sum_w2 <- total_sum_w2 + sum_w2_iter
 
-    total_n <- total_n + length(all_log_w)
+    # total_n <- total_n + length(all_log_w)
+    total_n <- total_n + n_iter
 
     # --- 3c. Recording ------------------------------------------------------------
     # record totals for this outer iteration
@@ -848,46 +1011,74 @@ MC_IS_single <- function(lsf, lDistr,
     }
 
     # ------ 3d. Schaetzer berechnen ----------------------
+
     pf <- NA_real_
     var_est <- NA_real_
     cov <- Inf
     ESS <- 0
 
-    if (total_sum_w > 0 && total_n > 0) {
-      pf_hat <- total_sum_Iw / total_sum_w
+    if (total_n > 0) {
+      # unbiased importance sampling estimator
+      pf_hat <- total_sum_Iw / total_n
 
-      S_w2 <- total_sum_w2
-      S_w <- total_sum_w
-      N <- total_n
-
-      if (total_sum_w > 0) {
-        pf_hat <- total_sum_Iw / total_sum_w
-
-        # Effective Sample Size
+      # Effective Sample Size
+      if (total_sum_w2 > 0) {
         ESS <- (total_sum_w^2) / total_sum_w2
-
-        # Stable ESS-based variance approximation
-        if (ESS > 0 && pf_hat > 0) {
-          var_est <- pf_hat * (1 - pf_hat) / ESS
-          cov <- sqrt(var_est) / pf_hat
-        } else {
-          var_est <- NA_real_
-          cov <- Inf
-        }
       } else {
-        pf_hat <- 0
+        ESS <- 0
+      }
+
+      # variance approximation
+      if (ESS > 0 && pf_hat > 0) {
+        var_est <- pf_hat * (1 - pf_hat) / ESS
+        cov <- sqrt(var_est) / pf_hat
+      } else {
         var_est <- NA_real_
         cov <- Inf
-        ESS <- 0
       }
 
       pf <- pf_hat
     } else {
-      # no weight mass -> pf = 0
       pf <- 0
       var_est <- 0
       cov <- Inf
     }
+
+    # if (total_sum_w > 0 && total_n > 0) {
+    #   pf_hat <- total_sum_Iw / total_sum_w
+
+    #   S_w2 <- total_sum_w2
+    #   S_w <- total_sum_w
+    #   N <- total_n
+
+    #   if (total_sum_w > 0) {
+    #     pf_hat <- total_sum_Iw / total_sum_w
+
+    #     # Effective Sample Size
+    #     ESS <- (total_sum_w^2) / total_sum_w2
+
+    #     # Stable ESS-based variance approximation
+    #     if (ESS > 0 && pf_hat > 0) {
+    #       var_est <- pf_hat * (1 - pf_hat) / ESS
+    #       cov <- sqrt(var_est) / pf_hat
+    #     } else {
+    #       var_est <- NA_real_
+    #       cov <- Inf
+    #     }
+    #   } else {
+    #     pf_hat <- 0
+    #     var_est <- NA_real_
+    #     cov <- Inf
+    #     ESS <- 0
+    #   }
+
+    #   pf <- pf_hat
+    # } else {
+    #   # no weight mass -> pf = 0
+    #   pf <- 0
+    #   var_est <- 0
+    #   cov <- Inf
+    # }
 
     # debug printing (optional)
     if (debug.level >= 1) {
@@ -1209,19 +1400,21 @@ resolve_future_seed <- function(seed) {
 #' @param beta_l  Optional threshold for reliability index screening.
 #'   Limit-state functions with \eqn{\beta > beta_l} may be excluded
 #'   from mixture construction in system analysis.
-#' @export
+#'
+#' @keywords internal
+#'
 MC_IS_system <- function(lsf,
                          lDistr,
-                         cov_user,
+                         cov_user = 0.05,
                          n_batch,
                          n_max,
                          use_threads,
                          sys_type,
-                         dataRecord,
+                         dataRecord = TRUE,
                          beta_l,
                          densityType,
-                         dps,
-                         debug.level,
+                         dps = NULL,
+                         debug.level = 0,
                          streams = NULL,
                          libPaths_local = .libPaths(),
                          seed = NULL,
@@ -1233,17 +1426,15 @@ MC_IS_system <- function(lsf,
                          min_adapt_samples = 10000,
                          alpha_min = 0.02,
                          stability_mode = c("robust", "fast")) {
+  if (debug.level >= 1) {
+    cat("DEBUG LEVEL INSIDE MC_IS_system:", debug.level, "\n")
+  }
+
   # Basic input checks
   stability_mode <- match.arg(stability_mode)
 
-  # ---- CRAN safe future handling ----
-  if (backend == "future") {
-    old_plan <- future::plan()
-    on.exit(future::plan(old_plan), add = TRUE)
-
-    if (!identical(Sys.getenv("NOT_CRAN"), "true")) {
-      future::plan(sequential)
-    }
+  if (missing(debug.level) || is.null(debug.level)) {
+    debug.level <- 0
   }
 
   if (!is.list(lsf) || length(lsf) == 0L) {
@@ -1299,11 +1490,23 @@ MC_IS_system <- function(lsf,
 
 
   # seeds setzen
-  if (!is.null(seed)) {
-    RNGkind("L'Ecuyer-CMRG")
-    set.seed(as.integer(seed))
-  }
+  # if (!is.null(seed)) {
+  #   RNGkind("L'Ecuyer-CMRG")
+  #   set.seed(as.integer(seed))
+  # }
+  rng_mgr <- create_rng_manager(seed)
 
+
+  ## create parallel cluster
+  cl <- NULL
+
+  if (backend == "parallel" && use_threads > 1L) {
+    cl <- make_parallel_cluster(
+      use_threads = use_threads,
+      seed = seed
+    )
+    on.exit(parallel::stopCluster(cl), add = TRUE)
+  }
 
   ## ------------------------------------------------------------------
   ## Normalize lDistr -> ensure each marginal is a funlist (with $d/$p/$q/$r)
@@ -1448,6 +1651,7 @@ MC_IS_system <- function(lsf,
     }
   }
 
+
   # ------------------------------------------------------------
   # Automatic vectorization detection for each LSF
   # ------------------------------------------------------------
@@ -1508,6 +1712,65 @@ MC_IS_system <- function(lsf,
     message(sprintf("[MC_IS_system] Global U-shifts: %s", dp_glob_str))
   }
 
+
+  # --------------------------------------------------
+  # Geometric analysis of failure regions (U-space)
+  # --------------------------------------------------
+
+  compute_geometry <- function(dp_u_list, res_form_list) {
+    n_lsfs <- length(dp_u_list)
+
+    if (n_lsfs < 2) {
+      return(list(multimodal = FALSE))
+    }
+
+    max_angle <- 0
+    max_dist <- 0
+
+    for (i in 1:(n_lsfs - 1)) {
+      for (j in (i + 1):n_lsfs) {
+        # --- Distance between design points ---
+        dist_ij <- sqrt(sum((dp_u_list[[i]] - dp_u_list[[j]])^2))
+
+        max_dist <- max(max_dist, dist_ij)
+
+        # --- Angle between gradients (alpha vectors) ---
+        alpha_i <- res_form_list[[i]]$dy
+        alpha_i <- alpha_i / sqrt(sum(alpha_i^2))
+
+        alpha_j <- res_form_list[[j]]$dy
+        alpha_j <- alpha_j / sqrt(sum(alpha_j^2))
+
+        cos_ij <- sum(alpha_i * alpha_j)
+
+        max_angle <- min(max_angle, cos_ij)
+      }
+    }
+
+    multimodal_flag <- !(max_angle > 0.85 && max_dist < 1.5)
+
+    return(list(
+      multimodal = multimodal_flag,
+      max_cos = max_angle,
+      max_dist = max_dist
+    ))
+  }
+
+  ## decision multimodal distribution or single shift
+  geom_info <- compute_geometry(dp_u_global, res_form)
+
+  use_multimodal <- geom_info$multimodal
+
+  if (debug.level >= 1) {
+    message(sprintf(
+      "[MC_IS_system] Geometry: cos=%.3f, dist=%.3f -> multimodal=%s",
+      geom_info$max_cos,
+      geom_info$max_dist,
+      use_multimodal
+    ))
+  }
+
+
   # ------------------------------------------------------------------
   # Parallel system: compute system design point
   # ------------------------------------------------------------------
@@ -1545,7 +1808,8 @@ MC_IS_system <- function(lsf,
   # ------------------------------------------------------------------
   if (sys_type == "serial") {
     pf_single <- pnorm(-res_form.beta)
-    alpha_i <- pf_single / sum(pf_single)
+    # alpha_i <- pf_single / sum(pf_single)
+    alpha_i <- rep(1 / n_lsfs, n_lsfs)
   }
 
   ## ------------------------------------------------------------------
@@ -1714,53 +1978,141 @@ MC_IS_system <- function(lsf,
 
   while (TRUE) {
     iter <- iter + 1L
+    total_batch <- n_batch
+
+    if (debug.level >= 1) {
+      cat("total_batch:", total_batch, "\n")
+    }
 
     # ==========================================================
     # Sampling Block
     # ==========================================================
 
-    if (sys_type == "serial") {
-      # Serial: multimodal sampling
-      mode_ids <- sample(seq_len(n_lsfs),
-        size = total_batch,
-        replace = TRUE,
-        prob = alpha_i
-      )
+    # if (sys_type == "serial") {
+    #   # Serial: multimodal sampling
+    #   mode_ids <- sample(seq_len(n_lsfs),
+    #     size = total_batch,
+    #     replace = TRUE,
+    #     prob = alpha_i
+    #   )
 
-      u_mat <- matrix(0, nrow = total_batch, ncol = n_vars_unique)
+    #   u_mat <- matrix(0, nrow = total_batch, ncol = n_vars_unique)
+
+    #   for (i in seq_len(total_batch)) {
+    #     shift <- dp_u_global[[mode_ids[i]]]
+    #     u_mat[i, ] <- rnorm(n_vars_unique,
+    #       mean = shift,
+    #       sd = 1
+    #     )
+    #   }
+    # } else { # parallel
+
+    #   # Parallel: single shift at system design point
+    #   u_mat <- matrix(rnorm(total_batch * n_vars_unique),
+    #     ncol = n_vars_unique
+    #   )
+
+    #   u_mat <- sweep(u_mat, 2, dp_u_sys, "+")
+
+    #   # Dummy mode ids (needed for ESS calculation)
+    #   mode_ids <- rep(1L, total_batch)
+    # }
+
+    ## -------------------------------------------------
+    ## Deterministic sampling (master only)
+    ## -------------------------------------------------
+    if (debug.level >= 1) {
+      t_sample_start <- proc.time()
+    }
+
+    u_vec <- rng_mgr$generate_norm_block(total_batch * n_vars_unique)
+    u_mat <- matrix(u_vec, ncol = n_vars_unique)
+
+    if (debug.level >= 1) {
+      t_sample <- (proc.time() - t_sample_start)[3]
+    }
+
+    # Use alway a multimodal sampling density
+    # if (sys_type == "serial" && use_multimodal) {
+    if (use_multimodal) {
+      # --- Multimodal sampling ---
+      # mode_ids <- sample(
+      #   seq_len(n_lsfs),
+      #   size = total_batch,
+      #   replace = TRUE,
+      #   prob = alpha_i
+      # )
+      ## mode_ids <- rep(seq_len(n_lsfs), length.out = total_batch)
+      n_per_mode <- floor(total_batch / n_lsfs)
+
+      mode_ids <- rep(seq_len(n_lsfs), each = n_per_mode)
+
+      if (length(mode_ids) < total_batch) {
+        mode_ids <- c(
+          mode_ids,
+          sample(seq_len(n_lsfs),
+            total_batch - length(mode_ids),
+            replace = TRUE
+          )
+        )
+      }
 
       for (i in seq_len(total_batch)) {
         shift <- dp_u_global[[mode_ids[i]]]
-        u_mat[i, ] <- rnorm(n_vars_unique,
-          mean = shift,
-          sd = 1
-        )
+        u_mat[i, ] <- u_mat[i, ] + shift
       }
-    } else { # parallel
+    } else {
+      # --- Single global shift ---
+      if (sys_type == "serial") {
+        # Use system-level FORM shift
+        shift <- rowMeans(do.call(cbind, dp_u_global))
 
-      # Parallel: single shift at system design point
-      u_mat <- matrix(rnorm(total_batch * n_vars_unique),
-        ncol = n_vars_unique
-      )
+        u_mat <- sweep(u_mat, 2, shift, "+")
 
-      u_mat <- sweep(u_mat, 2, dp_u_sys, "+")
-
-      # Dummy mode ids (needed for ESS calculation)
-      mode_ids <- rep(1L, total_batch)
+        mode_ids <- rep(1L, total_batch)
+      }
     }
+
+    # if (sys_type == "serial") {
+    #   ## deterministic mode selection
+    #   mode_probs <- alpha_i
+    #   mode_ids <- sample(
+    #     seq_len(n_lsfs),
+    #     size = total_batch,
+    #     replace = TRUE,
+    #     prob = mode_probs
+    #   )
+
+    #   for (i in seq_len(total_batch)) {
+    #     shift <- dp_u_global[[mode_ids[i]]]
+    #     u_mat[i, ] <- u_mat[i, ] + shift
+    #   }
+    # } else {
+    #   u_mat <- sweep(u_mat, 2, dp_u_sys, "+")
+    #   mode_ids <- rep(1L, total_batch)
+    # }
 
     # ==========================================================
     # Parallel Evaluation Block
     # ==========================================================
 
-    chunk_ids <- rep(seq_len(use_threads),
-      length.out = total_batch
-    )
+    # chunk_ids <- rep(seq_len(use_threads),
+    #   length.out = total_batch
+    # )
 
-    chunk_indices <- split(seq_len(total_batch), chunk_ids)
-
+    # chunk_indices <- split(seq_len(total_batch), chunk_ids)
+    if (use_threads <= 1L) {
+      chunk_indices <- list(seq_len(total_batch))
+    } else {
+      chunk_indices <- split(
+        seq_len(total_batch),
+        cut(seq_len(total_batch), breaks = use_threads)
+      )
+    }
 
     worker_fun <- function(idx) {
+      mode_ids <- rep(NA_integer_, nrow(u_mat))
+
       u_block <- u_mat[idx, , drop = FALSE]
       n_local <- nrow(u_block)
 
@@ -1768,23 +2120,58 @@ MC_IS_system <- function(lsf,
       # 1) Transform to physical space
       # ----------------------------
 
-      p_mat <- pnorm(u_block)
+      # p_mat <- pnorm(u_block)
+      # p_mat <- pmin(pmax(p_mat, 1e-14), 1 - 1e-14)
 
-      x_mat <- matrix(NA_real_, n_local, n_vars_unique)
+      # x_mat <- matrix(NA_real_, n_local, n_vars_unique)
 
-      for (j in seq_len(n_vars_unique)) {
-        x_mat[, j] <- vars[[j]]$q(p_mat[, j])
-      }
+      # for (j in seq_len(n_vars_unique)) {
+      #   x_mat[, j] <- vars[[j]]$q(p_mat[, j])
+      # }
 
       # ----------------------------
       # 2) Evaluate LSFs
       # ----------------------------
 
-      I_matrix <- matrix(0L, n_local, n_lsfs)
+      # I_matrix <- matrix(0L, n_local, n_lsfs)
 
+      # for (k in seq_len(n_lsfs)) {
+      #   idxs <- var.in.lsf[[k]]
+      #   x_sub <- x_mat[, idxs, drop = FALSE]
+
+      #   fun_k <- lsf_fun[[k]]
+
+      #   if (lsf_vectorized_list[k]) {
+      #     vals <- fun_k(x_sub)
+      #   } else {
+      #     vals <- apply(x_sub, 1, fun_k)
+      #   }
+
+      #   I_matrix[, k] <- as.integer(vals < 0)
+      # }
+
+      # FIX: faster without matrix
+      fail_count <- integer(n_local)
+
+      # for (k in seq_len(n_lsfs)) {
+      #   idxs <- var.in.lsf[[k]]
+      #   x_sub <- x_mat[, idxs, drop = FALSE]
+
+      # FIX: faster
       for (k in seq_len(n_lsfs)) {
         idxs <- var.in.lsf[[k]]
-        x_sub <- x_mat[, idxs, drop = FALSE]
+        n_loc_vars <- length(idxs)
+
+        x_sub <- matrix(NA_real_, n_local, n_loc_vars)
+
+        for (j in seq_len(n_loc_vars)) {
+          v <- idxs[j]
+
+          p <- pnorm(u_block[, v])
+          p <- pmin(pmax(p, 1e-14), 1 - 1e-14)
+
+          x_sub[, j] <- vars[[v]]$q(p)
+        }
 
         fun_k <- lsf_fun[[k]]
 
@@ -1794,13 +2181,20 @@ MC_IS_system <- function(lsf,
           vals <- apply(x_sub, 1, fun_k)
         }
 
-        I_matrix[, k] <- as.integer(vals < 0)
+        fail_count <- fail_count + (vals < 0)
       }
 
+      # if (sys_type == "serial") {
+      #   I_vals <- as.integer(rowSums(I_matrix) > 0)
+      # } else {
+      #   I_vals <- as.integer(rowSums(I_matrix) == n_lsfs)
+      # }
+
+      # FIX: faster
       if (sys_type == "serial") {
-        I_vals <- as.integer(rowSums(I_matrix) > 0)
+        I_vals <- as.integer(fail_count > 0)
       } else {
-        I_vals <- as.integer(rowSums(I_matrix) == n_lsfs)
+        I_vals <- as.integer(fail_count == n_lsfs)
       }
 
       # ----------------------------
@@ -1813,12 +2207,37 @@ MC_IS_system <- function(lsf,
       # 4) log h(u)
       # ----------------------------
 
-      if (sys_type == "serial") {
+      # if (sys_type == "serial") {
+      #   log_h_mat <- matrix(NA_real_, n_local, n_lsfs)
+
+      #   for (k in seq_len(n_lsfs)) {
+      #     shift <- dp_u_global[[k]]
+      #     shifted <- sweep(u_block, 2, shift, "-")
+
+      #     log_h_mat[, k] <-
+      #       log(alpha_i[k]) +
+      #       rowSums(dnorm(shifted, log = TRUE))
+      #   }
+
+      #   max_log <- apply(log_h_mat, 1, max)
+
+      #   log_h <- max_log +
+      #     log(rowSums(exp(log_h_mat - max_log)))
+      # } else {
+      #   shifted <- sweep(u_block, 2, dp_u_sys, "-")
+      #   log_h <- rowSums(dnorm(shifted, log = TRUE))
+      # }
+
+      shift <- rowMeans(do.call(cbind, dp_u_global))
+
+      if (sys_type == "serial" && use_multimodal) {
+        # --- Multimodal mixture density ---
         log_h_mat <- matrix(NA_real_, n_local, n_lsfs)
 
         for (k in seq_len(n_lsfs)) {
-          shift <- dp_u_global[[k]]
-          shifted <- sweep(u_block, 2, shift, "-")
+          shift_k <- dp_u_global[[k]]
+
+          shifted <- sweep(u_block, 2, shift_k, "-")
 
           log_h_mat[, k] <-
             log(alpha_i[k]) +
@@ -1830,7 +2249,9 @@ MC_IS_system <- function(lsf,
         log_h <- max_log +
           log(rowSums(exp(log_h_mat - max_log)))
       } else {
-        shifted <- sweep(u_block, 2, dp_u_sys, "-")
+        # --- Single shift density ---
+        shifted <- sweep(u_block, 2, shift, "-")
+
         log_h <- rowSums(dnorm(shifted, log = TRUE))
       }
 
@@ -1839,7 +2260,7 @@ MC_IS_system <- function(lsf,
       list(
         log_w = log_w,
         I_vals = I_vals,
-        I_matrix = I_matrix,
+        # I_matrix = I_matrix,
         mode_ids = mode_ids[idx]
       )
     }
@@ -1849,14 +2270,36 @@ MC_IS_system <- function(lsf,
     # Parallele Auswertung
     # --------------------------------------------------
 
-    if (backend == "future") {
-      res_list <- future.apply::future_lapply(
-        chunk_indices,
-        worker_fun,
-        future.seed = FALSE
-      )
-    } else {
-      res_list <- lapply(chunk_indices, worker_fun)
+    # if (backend == "future") {
+    #   res_list <- future.apply::future_lapply(
+    #     chunk_indices,
+    #     worker_fun,
+    #     future.seed = FALSE
+    #   )
+    # } else {
+    #   res_list <- lapply(chunk_indices, worker_fun)
+    # }
+    if (debug.level >= 1) {
+      t_parallel_start <- proc.time()
+    }
+
+    res_list <- run_parallel(
+      X = chunk_indices,
+      FUN = worker_fun,
+      backend = backend,
+      use_threads = use_threads,
+      cl = cl
+    )
+
+    if (debug.level >= 1) {
+      t_parallel <- (proc.time() - t_parallel_start)[3]
+    }
+
+    if (debug.level >= 1) {
+      cat(sprintf(
+        "[MC_IS_system]: Sampling: %.3f s | Parallel: %.3f s\n",
+        t_sample, t_parallel
+      ))
     }
 
     # ==========================================================
@@ -1865,8 +2308,12 @@ MC_IS_system <- function(lsf,
 
     all_log_w <- unlist(lapply(res_list, `[[`, "log_w"))
     all_I_vals <- unlist(lapply(res_list, `[[`, "I_vals"))
-    all_I_matrix <- do.call(rbind, lapply(res_list, `[[`, "I_matrix"))
+    # all_I_matrix <- do.call(rbind, lapply(res_list, `[[`, "I_matrix"))
     all_mode_ids <- unlist(lapply(res_list, `[[`, "mode_ids"))
+
+    if (debug.level >= 1) {
+      cat("len(all_log_w):", length(all_log_w), "\n")
+    }
 
     state <- compute_weight_update(
       all_log_w,
@@ -1888,7 +2335,7 @@ MC_IS_system <- function(lsf,
     # Estimator Update Block
     # ==========================================================
 
-    if (sys_type == "serial" && stability_mode == "fast") {
+    if (sys_type == "serial" && use_multimodal && stability_mode == "fast") {
       max_log_w <- max(all_log_w)
       shifted_weights <- exp(all_log_w - max_log_w)
 
@@ -1982,58 +2429,60 @@ MC_IS_system <- function(lsf,
     }
 
 
-    if (adaptive_alpha && sys_type == "serial" && n_sim > min_adapt_samples) {
-      pf_i_hat <- numeric(n_lsfs)
+    if (adaptive_alpha && sys_type == "serial" && use_multimodal && n_sim > min_adapt_samples) {
+      stop("adaptive_alpha currently requires I_matrix; disable adaptive_alpha or re-enable I_matrix.")
 
-      if (stability_mode == "fast") {
-        pf_sys_hat <- sum(shifted_weights[all_I_vals == 1])
-
-        if (!is.na(pf_sys_hat) && is.finite(pf_sys_hat) && pf_sys_hat > 0) {
-          for (k in seq_len(n_lsfs)) {
-            pf_i_hat[k] <-
-              sum((all_I_matrix[, k] * all_I_vals) *
-                shifted_weights) / pf_sys_hat
-          }
-        }
-      }
-
-      if (stability_mode == "robust") {
-        # pf_sys_hat in log-domain
-        pf_sys_hat <- exp(log_total_sum_Iw - log_total_sum_w)
-
-        if (!is.na(pf_sys_hat) && is.finite(pf_sys_hat) && pf_sys_hat > 0) {
-          for (k in seq_len(n_lsfs)) {
-            idx_k <- which(all_I_matrix[, k] == 1 &
-              all_I_vals == 1)
-
-            if (length(idx_k) > 0) {
-              log_contrib <- all_log_w[idx_k]
-
-              max_log_c <- max(log_contrib)
-
-              pf_i_hat[k] <-
-                exp(
-                  max_log_c +
-                    log(sum(exp(log_contrib - max_log_c))) -
-                    log_total_sum_w
-                )
-            } else {
-              pf_i_hat[k] <- 0
-            }
-          }
-        }
-      }
-
-      # update alpha
-      if (sum(pf_i_hat) > 0) {
-        alpha_target <- pf_i_hat / sum(pf_i_hat)
-
-        alpha_i <- (1 - alpha_update_rate) * alpha_i +
-          alpha_update_rate * alpha_target
-
-        alpha_i <- pmax(alpha_i, alpha_min)
-        alpha_i <- alpha_i / sum(alpha_i)
-      }
+      # pf_i_hat <- numeric(n_lsfs)
+      #
+      # if (stability_mode == "fast") {
+      #   pf_sys_hat <- sum(shifted_weights[all_I_vals == 1])
+      #
+      #   if (!is.na(pf_sys_hat) && is.finite(pf_sys_hat) && pf_sys_hat > 0) {
+      #     for (k in seq_len(n_lsfs)) {
+      #       pf_i_hat[k] <-
+      #         sum((all_I_matrix[, k] * all_I_vals) *
+      #           shifted_weights) / pf_sys_hat
+      #     }
+      #   }
+      # }
+      #
+      # if (stability_mode == "robust") {
+      #   # pf_sys_hat in log-domain
+      #   pf_sys_hat <- exp(log_total_sum_Iw - log_total_sum_w)
+      #
+      #   if (!is.na(pf_sys_hat) && is.finite(pf_sys_hat) && pf_sys_hat > 0) {
+      #     for (k in seq_len(n_lsfs)) {
+      #       idx_k <- which(all_I_matrix[, k] == 1 &
+      #         all_I_vals == 1)
+      #
+      #       if (length(idx_k) > 0) {
+      #         log_contrib <- all_log_w[idx_k]
+      #
+      #         max_log_c <- max(log_contrib)
+      #
+      #         pf_i_hat[k] <-
+      #           exp(
+      #             max_log_c +
+      #               log(sum(exp(log_contrib - max_log_c))) -
+      #               log_total_sum_w
+      #           )
+      #       } else {
+      #         pf_i_hat[k] <- 0
+      #       }
+      #     }
+      #   }
+      # }
+      #
+      # # update alpha
+      # if (sum(pf_i_hat) > 0) {
+      #   alpha_target <- pf_i_hat / sum(pf_i_hat)
+      #
+      #   alpha_i <- (1 - alpha_update_rate) * alpha_i +
+      #     alpha_update_rate * alpha_target
+      #
+      #   alpha_i <- pmax(alpha_i, alpha_min)
+      #   alpha_i <- alpha_i / sum(alpha_i)
+      # }
     }
 
 
@@ -2050,6 +2499,21 @@ MC_IS_system <- function(lsf,
 
     ESS_min <- if (sys_type == "parallel") 50 else 30
     n_min <- 5 * n_batch
+
+    if (debug.level >= 1) {
+      if (iter %% 1 == 0) {
+        cat(
+          "Iteration:", iter,
+          "n_sim:", n_sim,
+          "cov:", cov, "\n"
+        )
+      }
+
+      cat(sprintf(
+        "[MC_IS_system]: ESS: %.3f \n",
+        ESS_global
+      ))
+    }
 
     stop_condition <- (
       !is.na(cov) &&
@@ -2094,6 +2558,129 @@ MC_IS_system <- function(lsf,
   if (debug.level >= 1) message("[MC_IS_system] finished.")
 
   return(out)
+}
+
+
+#' Monte Carlo Importance Sampling using smooth system aggregation
+#'
+#' Performs reliability estimation for systems of limit-state functions
+#' by constructing a **smooth global system limit-state function**
+#' and applying the existing single-LSF importance sampling algorithm.
+#'
+#' The system limit-state function is built using \code{build_gsys()},
+#' which aggregates component limit states via smooth min/max operators.
+#'
+#' This approach converts a system reliability problem into a standard
+#' single limit-state reliability problem.
+#'
+#' @param sys_input List of \code{SYS_LSF} objects defining the system.
+#'
+#' @param sys_structure System aggregation type: \code{"serial"},
+#' \code{"parallel"}, or a custom function.
+#'
+#' @param smooth_kappa Smoothing parameter controlling the
+#' approximation of min/max aggregation.
+#'
+#' @inheritParams MC_IS
+#'
+#' @return Result object returned by \code{MC_IS_single()} with additional
+#' metadata describing the system configuration.
+#'
+#' @keywords internal
+#'
+MC_IS_gsys <- function(sys_input,
+                       sys_structure = "serial",
+                       smooth_kappa = 20,
+                       cov_user = 0.05,
+                       n_batch = 5000,
+                       n_max = 1e6,
+                       use_threads = 4,
+                       backend = "future",
+                       dataRecord = TRUE,
+                       densityType = "norm",
+                       dps = NULL,
+                       debug.level = 0,
+                       seed = NULL,
+                       adaptive_alpha = FALSE,
+                       alpha_update_rate = 0.1,
+                       adaptive_batch = FALSE,
+                       batch_control = list(),
+                       min_adapt_samples = 10000,
+                       alpha_min = 0.02,
+                       stability_mode = "robust") {
+  if (debug.level >= 1) {
+    message("[MC_IS_gsys] building smooth system limit-state function...")
+  }
+
+  # -------------------------------------------------
+  # Build system representation
+  # -------------------------------------------------
+
+  sys_obj <- build_gsys(
+    sys_input = sys_input,
+    sys_structure = sys_structure,
+    smooth_kappa = smooth_kappa,
+    debug.level = debug.level
+  )
+
+  # debug
+  # print(body(sys_obj$g_sys))
+
+  g_sys <- sys_obj$g_sys
+  distr_flat <- sys_obj$distr_flat
+
+  if (debug.level >= 1) {
+    message(sprintf(
+      "[MC_IS_gsys] system has %d LSFs and %d variables",
+      sys_obj$n_lsfs,
+      sys_obj$n_vars
+    ))
+  }
+
+  # debug
+  # message("kappa=", smooth_kappa)
+
+  # -------------------------------------------------
+  # Run importance sampling using existing routine
+  # -------------------------------------------------
+
+  res <- MC_IS_single(
+    lsf = g_sys,
+    lDistr = distr_flat,
+    cov_user = cov_user,
+    n_batch = n_batch,
+    n_max = n_max,
+    use_threads = use_threads,
+    backend = backend,
+    dataRecord = dataRecord,
+    densityType = densityType,
+    dps = dps,
+    debug.level = debug.level,
+    seed = seed,
+    adaptive_alpha = adaptive_alpha,
+    alpha_update_rate = alpha_update_rate,
+    adaptive_batch = adaptive_batch,
+    batch_control = batch_control,
+    min_adapt_samples = min_adapt_samples,
+    alpha_min = alpha_min,
+    stability_mode = stability_mode
+  )
+
+  # -------------------------------------------------
+  # Attach system metadata
+  # -------------------------------------------------
+
+  res$method <- "MCIS_System_gsys"
+  res$sys_structure <- sys_structure
+  res$smooth_kappa <- smooth_kappa
+  res$n_lsfs <- sys_obj$n_lsfs
+  res$n_vars <- sys_obj$n_vars
+
+  if (debug.level >= 1) {
+    message("[MC_IS_gsys] finished.")
+  }
+
+  return(res)
 }
 
 
@@ -2179,7 +2766,7 @@ compute_weight_update <- function(all_log_w,
     log_sum_w_batch <- max_log_w +
       log(sum(exp(log_w_batch - max_log_w)))
 
-    if (any(all_I_vals == 1)) {
+    if (any(all_I_vals == 1, na.rm = TRUE)) {
       log_Iw_batch <- log_w_batch[all_I_vals == 1]
       max_log_Iw <- max(log_Iw_batch)
       log_sum_Iw_batch <- max_log_Iw +
@@ -2214,4 +2801,337 @@ compute_weight_update <- function(all_log_w,
   }
 
   return(state)
+}
+
+
+#' Build a smooth system limit-state function (g_sys)
+#'
+#' Constructs a **global system limit-state function** from a list of
+#' individual limit-state functions (`SYS_LSF` objects). The resulting
+#' function aggregates all component limit states using a **smooth
+#' approximation** of the minimum or maximum operator.
+#'
+#' The smooth aggregation improves numerical stability and differentiability,
+#' which is beneficial for gradient-based reliability methods such as
+#' FORM, SORM, and importance sampling algorithms.
+#'
+#' For a serial system the aggregation is
+#'
+#' \deqn{
+#' g_{\kappa}(x) =
+#' -\frac{1}{\kappa}\log
+#' \left(
+#' \sum_{i=1}^{m} \exp(-\kappa g_i(x))
+#' \right)
+#' }
+#'
+#' which approximates
+#'
+#' \deqn{
+#' \min_i g_i(x).
+#' }
+#'
+#' For a parallel system the aggregation is
+#'
+#' \deqn{
+#' g_{\kappa}(x) =
+#' \frac{1}{\kappa}\log
+#' \left(
+#' \sum_{i=1}^{m} \exp(\kappa g_i(x))
+#' \right)
+#' }
+#'
+#' which approximates
+#'
+#' \deqn{
+#' \max_i g_i(x).
+#' }
+#'
+#' The approximation becomes exact for
+#' \eqn{\kappa \rightarrow \infty}.
+#'
+#' In addition to the system function, this helper also constructs a
+#' **flattened list of marginal distributions** and a **variable index map**
+#' that links the global variable vector to the variables of each
+#' individual limit-state function.
+#'
+#' @param sys_input List of \code{SYS_LSF} objects defining the component
+#'   limit-state functions of the system.
+#'
+#' @param sys_structure System aggregation structure.
+#'   Supported options are
+#'   \describe{
+#'     \item{\code{"serial"}}{System fails if any component fails.}
+#'     \item{\code{"parallel"}}{System fails only if all components fail.}
+#'     \item{\code{function(g_vals)}}{Custom aggregation function applied
+#'     to the vector of component limit-state values.}
+#'   }
+#'
+#' @param smooth_kappa Positive numeric value controlling the smoothness
+#'   of the aggregation. Larger values approach the exact \code{min}
+#'   or \code{max} operator.
+#'
+#' @param debug.level Optional verbosity level for diagnostic output.
+#'
+#' @return A list containing:
+#' \describe{
+#'   \item{\code{g_sys}}{Callable system limit-state function
+#'   \code{function(x)} operating on the global variable vector.}
+#'
+#'   \item{\code{distr_flat}}{Flattened list of marginal distribution
+#'   objects corresponding to all variables in the system.}
+#'
+#'   \item{\code{var_map}}{List mapping each limit-state function to the
+#'   indices of its variables in the global vector.}
+#'
+#'   \item{\code{n_vars}}{Total number of basic variables in the system.}
+#'
+#'   \item{\code{n_lsfs}}{Number of limit-state functions.}
+#' }
+#'
+#' @details
+#' This function is primarily used internally by reliability algorithms
+#' that operate on a **single limit-state function**, such as
+#' importance sampling or crude Monte Carlo simulation.
+#'
+#' By constructing a smooth global limit-state function, the system
+#' reliability problem can be treated as a standard single-LSF problem,
+#' enabling the reuse of algorithms originally developed for
+#' component reliability.
+#'
+#' @keywords internal
+#'
+#' @seealso
+#' \code{smooth_min}, \code{smooth_max},
+#' \code{\link{MC_IS}}, \code{\link{SYS_LSF}}
+#'
+#' @author
+#' (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -
+#' Hochschule Biberach (until 2022),
+#' TU Dortmund University - Chair of Structural Concrete (since 2023)
+#'
+build_gsys <- function(sys_input,
+                       sys_structure = "serial",
+                       smooth_kappa = 20,
+                       debug.level = 0) {
+  n_lsfs <- length(sys_input)
+
+  is_custom <- is.function(sys_structure)
+
+  if (n_lsfs < 1) {
+    stop("build_gsys: no limit state functions provided.")
+  }
+
+  # -------------------------------------------------
+  # 1. Extract LSF functions
+  # -------------------------------------------------
+
+  lsfs <- lapply(sys_input, function(obj) obj$getLSF())
+
+  # -------------------------------------------------
+  # 2. Build distribution list + variable mapping
+  # -------------------------------------------------
+
+  distr_flat <- list()
+  var_map <- list()
+
+  idx <- 1
+
+  for (i in seq_along(sys_input)) {
+    vars_i <- sys_input[[i]]$vars
+    n_vars_i <- length(vars_i)
+
+    var_map[[i]] <- idx:(idx + n_vars_i - 1)
+
+    subdistr <- lapply(vars_i, function(v) {
+      d <- v$getlDistr()
+
+      if (is.list(d) && !is.null(d[[1]]$p)) {
+        return(d[[1]])
+      }
+
+      if (is.list(d) && !is.null(d$p)) {
+        return(d)
+      }
+
+      stop("build_gsys: invalid distribution object.")
+    })
+
+    distr_flat <- c(distr_flat, subdistr)
+
+    idx <- idx + n_vars_i
+  }
+
+  n_vars <- length(distr_flat)
+
+
+  # eval_lsfs <- function(x) {
+  #   if (is.vector(x)) {
+  #     g_vals <- numeric(n_lsfs)
+
+  #     for (i in seq_len(n_lsfs)) {
+  #       idxs <- var_map[[i]]
+
+  #       xi <- as.numeric(x[idxs])
+
+  #       g_vals[i] <- lsfs[[i]](xi)
+  #     }
+
+  #     return(g_vals)
+  #   }
+
+  #   if (is.matrix(x)) {
+  #     n_samples <- nrow(x)
+
+  #     G <- matrix(NA_real_, nrow = n_samples, ncol = n_lsfs)
+
+  #     for (i in seq_len(n_lsfs)) {
+  #       idxs <- var_map[[i]]
+
+  #       Xi <- x[, idxs, drop = FALSE]
+
+  #       G[, i] <- lsfs[[i]](Xi)
+  #     }
+
+  #     return(G)
+  #   }
+
+  #   stop("Unsupported input type in eval_lsfs")
+  # }
+  eval_lsfs <- function(x) {
+    if (is.vector(x)) {
+      g_vals <- numeric(n_lsfs)
+
+      for (i in seq_len(n_lsfs)) {
+        xi <- as.numeric(x[var_map[[i]]])
+
+        g_vals[i] <- lsfs[[i]](xi)
+      }
+
+      return(g_vals)
+    }
+
+    if (is.matrix(x)) {
+      n_samples <- nrow(x)
+
+      G <- matrix(NA_real_, n_samples, n_lsfs)
+
+      for (i in seq_len(n_lsfs)) {
+        Xi <- x[, var_map[[i]], drop = FALSE]
+
+        G[, i] <- lsfs[[i]](Xi)
+      }
+
+      return(G)
+    }
+
+    stop("Unsupported input type in eval_lsfs")
+  }
+
+  # -------------------------------------------------
+  # 3. Build system LSF
+  # -------------------------------------------------
+
+  g_sys <- function(x) {
+    G <- eval_lsfs(x)
+
+    if (is.null(dim(G))) {
+      if (is_custom) {
+        return(sys_structure(G))
+      }
+
+      if (sys_structure == "serial") {
+        m <- min(G)
+
+        return(
+          m - log(sum(exp(-smooth_kappa * (G - m)))) / smooth_kappa
+        )
+      }
+
+      if (sys_structure == "parallel") {
+        m <- max(G)
+
+        return(
+          m + log(sum(exp(smooth_kappa * (G - m)))) / smooth_kappa
+        )
+      }
+
+      stop("Unsupported system structure.")
+    }
+
+    if (is.matrix(G)) {
+      if (is_custom) {
+        return(apply(G, 1, sys_structure))
+      }
+
+      if (sys_structure == "serial") {
+        # m <- G[, 1]
+
+        # if (ncol(G) > 1) {
+        #   for (j in 2:ncol(G)) {
+        #     m <- pmin(m, G[, j])
+        #   }
+        # }
+
+        m <- G[, 1]
+        for (j in seq_len(ncol(G) - 1) + 1) {
+          m <- pmin(m, G[, j])
+        }
+
+        E <- exp(pmax(-smooth_kappa * (G - m), -700))
+        S <- rowSums(E)
+
+        S <- pmax(S, .Machine$double.xmin)
+
+        res <- m - log(S) / smooth_kappa
+
+        bad <- !is.finite(res)
+        if (any(bad)) res[bad] <- m[bad]
+
+        return(res)
+      }
+
+      if (sys_structure == "parallel") {
+        # m <- G[, 1]
+
+        # if (ncol(G) > 1) {
+        #   for (j in 2:ncol(G)) {
+        #     m <- pmax(m, G[, j])
+        #   }
+        # }
+        m <- G[, 1]
+        for (j in seq_len(ncol(G) - 1) + 1) {
+          m <- pmax(m, G[, j])
+        }
+
+        E <- exp(pmin(smooth_kappa * (G - m), 700))
+        S <- rowSums(E)
+
+        S <- pmax(S, .Machine$double.xmin)
+
+        res <- m + log(S) / smooth_kappa
+
+        bad <- !is.finite(res)
+        if (any(bad)) res[bad] <- m[bad]
+
+        return(res)
+      }
+
+      stop("Unsupported system structure.")
+    }
+
+    stop("Unsupported system structure.")
+  }
+
+  # -------------------------------------------------
+  # 4. Return structure
+  # -------------------------------------------------
+
+  list(
+    g_sys = g_sys,
+    distr_flat = distr_flat,
+    var_map = var_map,
+    n_vars = n_vars,
+    n_lsfs = n_lsfs
+  )
 }

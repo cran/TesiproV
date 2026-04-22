@@ -27,6 +27,7 @@ objects, etc. are **not** treated as empty.  If you need additional
 classes to be regarded as empty you can extend the internal checks.
 }
 \examples{
+\dontrun{
 is_empty(NULL) # TRUE
 is_empty(numeric(0)) # TRUE
 is_empty(list()) # TRUE
@@ -34,5 +35,6 @@ is_empty(data.frame()) # TRUE
 is_empty(1:5) # FALSE
 is_empty(list(a = 1)) # FALSE
 is_empty(data.frame(x = 1)) # FALSE
+}
 }
 \keyword{internal}

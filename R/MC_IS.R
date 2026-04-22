@@ -349,23 +349,41 @@ MC_IS <- function(lsf,
     )
   }
 
-  ## Initialize Future plan
+  ## Warning if no future plan was set by the user
   if (backend == "future") {
     current_plan <- future::plan()
 
-    is_multicore <- inherits(current_plan, "multicore")
-    is_multisession <- inherits(current_plan, "multisession")
-
-    if (.Platform$OS.type == "windows") {
-      if (!is_multisession) {
-        future::plan(future::multisession, workers = use_threads)
-      }
-    } else {
-      if (!is_multicore) {
-        future::plan(future::multicore, workers = use_threads)
-      }
+    if (inherits(current_plan, "sequential")) {
+      message(
+        "[TesiproV::MC_IS] No active future plan detected.\n",
+        "Computation will run sequentially.\n",
+        "To enable parallel execution, set for example:\n",
+        if (.Platform$OS.type == "windows") {
+          "  future::plan(multisession, workers = 4)"
+        } else {
+          "  future::plan(multicore, workers = 4)"
+        }
+      )
     }
   }
+
+  # ## Initialize Future plan
+  # if (backend == "future") {
+  #   current_plan <- future::plan()
+
+  #   is_multicore <- inherits(current_plan, "multicore")
+  #   is_multisession <- inherits(current_plan, "multisession")
+
+  #   if (.Platform$OS.type == "windows") {
+  #     if (!is_multisession) {
+  #       future::plan(future::multisession, workers = use_threads)
+  #     }
+  #   } else {
+  #     if (!is_multicore) {
+  #       future::plan(future::multicore, workers = use_threads)
+  #     }
+  #   }
+  # }
 
   # -------------------------------------------------------------------------
   ## RNG initialization depending on backend

@@ -1,3 +1,34 @@
+# TesiproV 0.9.6
+
+## MC_IS estimator correction and reliability analysis improvements
+
+### Monte Carlo Importance Sampling (MC_IS)
+- Corrected the MC_IS estimator to remove bias caused by the previous self-normalized implementation.
+- Refactored worker aggregation in `MC_IS_single` to ensure correct accumulation of 
+  weighted samples and consistent global statistics.
+- Workers now compute weights directly and return aggregated statistics instead of raw sample vectors.
+
+### System reliability analysis
+- Fixed incorrect propagation of `sys_type` from `calculateSystemProbability()` to `MC_IS_system()`, 
+  ensuring that serial and parallel systems are evaluated correctly.
+- Resolved cases of uninitialized variables in the system worker (`mode_ids`, `shift`, and references to `I_matrix`).
+- Enabled multimodal sampling for both serial and parallel systems.
+
+### Performance improvements
+- Optimized the transformation from u-space to x-space by removing large intermediate 
+  matrices and computing quantiles column-wise.
+- Replaced large failure indicator matrices with incremental counters to significantly reduce memory usage.
+- Reduced worker-to-master communication in parallel runs by returning only aggregated statistics.
+
+### Validation and testing
+- Added regression tests for `MC_IS_single`, including linear limit-state cases, 
+  non-normal distributions, and rare-event scenarios.
+- Added system reliability tests comparing results with `MC_CRUDE`.
+- Verified consistency with FORM results within expected Monte Carlo error.
+
+
+---
+
 # TesiproV 0.9.5
 
 ## Major refactoring of object classes

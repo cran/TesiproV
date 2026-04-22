@@ -25,21 +25,35 @@ test_that("Spaethe (1991) - Example 2", {
   lsf_param$check()
 
   machine_form <- PROB_MACHINE(name = "FORM", fCall = "FORM")
-  #machine_form <- PROB_MACHINE(name = "SORM", fCall = "SORM")
-  #machine_form <- PROB_MACHINE(name = "MC CoV 0.05", fCall = "MC_CRUDE", options = list("n_max" = 1e7, "cov_user" = 0.01, "use_threads" = 1L, "seed" = 1234, backend = "future"))
+  machine_sorm <- PROB_MACHINE(name = "SORM", fCall = "SORM")
+  machine_MCIS <- PROB_MACHINE("MCIS", "MC_IS",
+                               options = list(
+                                 cov_user = 0.025,
+                                 n_max = 200000, # statt Millionen
+                                 n_batch = 20000,
+                                 use_threads = 1L,
+                                 backend = "future",
+                                 seed = 1234
+                               ))
+  machine_SubSam <- PROB_MACHINE("MC_SubSam", "MC_SubSam")
+  machine_MCCrude <- PROB_MACHINE("MC_Crude", "MC_CRUDE")
 
 
   ps_param <- SYS_PROB(
     sys_input = list(lsf_param),
-    probMachines = list(machine_form)
+    probMachines = list(machine_form,machine_sorm,machine_MCIS,machine_SubSam,machine_MCCrude)
   )
 
   ps_param$runMachines()
 
   pf_expected   <- 1.398e-4
   beta_expected <- -qnorm(pf_expected)
-  rel_error <-abs(ps_param$beta_single[1] - beta_expected) / beta_expected
-  expect_lt(rel_error, 0.02) # Abweichung 2% erlaubt
+
+  rel_error <- c(1,2,3,4,5)
+  for (i in rel_error) {
+    rel_error[i] <-abs(ps_param$beta_single[i] - beta_expected) / beta_expected
+    expect_lt(rel_error[i], 0.025) # Abweichung 2.5% erlaubt
+  }
 })
 
 

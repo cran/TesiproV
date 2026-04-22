@@ -38,3 +38,4 @@ internal  Helper function to debug more easy
 (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
 TU Dortmund University - Chair of Structural Concrete (since 2023)
 }
+\keyword{internal}

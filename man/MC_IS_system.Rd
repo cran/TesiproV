@@ -7,16 +7,16 @@
 MC_IS_system(
   lsf,
   lDistr,
-  cov_user,
+  cov_user = 0.05,
   n_batch,
   n_max,
   use_threads,
   sys_type,
-  dataRecord,
+  dataRecord = TRUE,
   beta_l,
   densityType,
-  dps,
-  debug.level,
+  dps = NULL,
+  debug.level = 0,
   streams = NULL,
   libPaths_local = .libPaths(),
   seed = NULL,
@@ -116,3 +116,4 @@ stability in multimodal system analyses.}
 \description{
 Monte-Carlo Importance Sampling for a system of limit-state functions
 }
+\keyword{internal}

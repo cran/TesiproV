@@ -19,3 +19,4 @@ Helper: is a value missing (NULL, NA, zero-length, or empty string)
 Used inside validateArgs() to avoid the missing value where TRUE/FALSE needed
 problem.
 }
+\keyword{internal}

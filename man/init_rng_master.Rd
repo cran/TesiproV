@@ -20,3 +20,4 @@ A master RNG stream object (numeric vector of length 7)
 \description{
 Sets RNG type `"L'Ecuyer-CMRG"` and optionally a fixed seed.
 }
+\keyword{internal}

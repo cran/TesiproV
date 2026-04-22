@@ -119,3 +119,4 @@ Each random variable is transformed between physical and normal spaces using its
 
 Parallel execution is supported via either base R's **parallel** package or the **future** backend.
 }
+\keyword{internal}

@@ -50,22 +50,23 @@
 #' @importFrom future availableCores plan sequential multisession multicore
 #' @import future.apply
 #' @import digest
-#' @export
-
+#'
+#' @keywords internal
+#'
 .onLoad <- function(libname, pkgname) {
-
-    if (!requireNamespace("future", quietly = TRUE)) {
-      stop("Package \"future\" is required but not installed.",
-           call. = FALSE)
-    }
-
-    # DO NOT set a plan here
-    # Only store default preferences
-
-    options(
-      TesiproV.future.default = "multisession",
-      TesiproV.max_workers.default = 4L
+  if (!requireNamespace("future", quietly = TRUE)) {
+    stop("Package \"future\" is required but not installed.",
+      call. = FALSE
     )
+  }
+
+  # DO NOT set a plan here
+  # Only store default preferences
+
+  options(
+    TesiproV.future.default = "multisession",
+    TesiproV.max_workers.default = 4L
+  )
 
   invisible()
 }
