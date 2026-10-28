@@ -7,15 +7,15 @@
 make_parallel_cluster(use_threads, seed = NULL)
 }
 \arguments{
-\item{use_threads}{Integer \>=1 – number of workers.}
+\item{use_threads}{Integer \>=1 - number of workers.}
 
-\item{seed}{Optional integer or L'Ecuyer‑CMRG stream (length 7) for reproducibility.}
+\item{seed}{Optional integer or L'Ecuyer-CMRG stream (length 7) for reproducibility.}
 }
 \value{
 A cluster object (or NULL when the backend is "future").
 }
 \description{
 Returns a `parallel` cluster object that already has the
-  RNG streams (L'Ecuyer‑CMRG) and required packages loaded.
+  RNG streams (L'Ecuyer-CMRG) and required packages loaded.
 }
 \keyword{internal}

@@ -10,8 +10,8 @@ MC_CRUDE(
   cov_user = 0.05,
   n_batch = 10000,
   n_max = 1e+07,
-  use_threads = parallel::detectCores(),
-  backend = c("future", "parallel"),
+  use_threads = NULL,
+  backend = NULL,
   dataRecord = TRUE,
   debug.level = 0,
   seed = NULL
@@ -22,40 +22,44 @@ MC_CRUDE(
 specification described in the "Limit-State Function (LSF) Interface"
 section below.}
 
-\item{lDistr}{List of distribution objects as returned by \code{PROB_BASEVAR$getlDistr()}.}
+\item{lDistr}{List of distribution objects as returned by
+\code{PROB_BASEVAR$getlDistr()}.}
 
 \item{cov_user}{Target coefficient of variation to be achieved.}
 
-\item{n_batch}{Batch size per iteration (used for parallel computation).}
+\item{n_batch}{Number of samples per batch.}
 
-\item{n_max}{Maximum number of Monte Carlo samples (stopping criterion).}
+\item{n_max}{Maximum number of Monte Carlo samples.}
 
-\item{use_threads}{Number of parallel threads. Set to 1 for single-core
-execution. Parallel execution is not supported on Windows.}
+\item{use_threads}{Number of workers for \code{backend = "parallel"}
+(default 1). Without effect for \code{backend = "future"}.}
 
-\item{backend}{Parallel backend, either \code{"future"} (default) or \code{"parallel"}.}
+\item{backend}{Parallel backend, \code{"future"} or \code{"parallel"}. If
+\code{NULL} (default), \code{"parallel"} with one worker is used, i.e.
+the calculation runs sequentially on every system.}
 
 \item{dataRecord}{Logical; if \code{TRUE}, intermediate results are recorded.}
 
-\item{debug.level}{Integer controlling verbosity (0 = silent, 2 = detailed output).}
+\item{debug.level}{Integer controlling verbosity (0 = silent, 2 = detailed
+output).}
 
 \item{seed}{Optional integer value for reproducible random numbers.}
 }
 \value{
-MC_CRUDE returns an object containing the following elements:
+MC_CRUDE returns a list with the following elements:
 \itemize{
-  \item \code{method}: Character string identifying the method ("MCC").
+  \item \code{method}: Character string "MC_CRUDE".
   \item \code{beta}: Estimated reliability index \eqn{\beta = -\Phi^{-1}(p_f)}.
   \item \code{pf}: Estimated probability of failure.
   \item \code{var}: Estimated variance of the Monte Carlo estimator.
   \item \code{cov_mc}: Estimated coefficient of variation of \code{pf}.
-  \item \code{cov_user}: Target coefficient of variation specified by the user.
+  \item \code{cov_user}: Target coefficient of variation.
   \item \code{n_mc}: Total number of Monte Carlo samples generated.
   \item \code{n_max}: Maximum allowed number of samples.
-  \item \code{n_batch}: Batch size per iteration.
-  \item \code{n_threads}: Number of threads used.
+  \item \code{n_batch}: Batch size.
+  \item \code{n_threads}: Number of workers used.
   \item \code{runtime}: CPU time returned by \code{proc.time()}.
-  \item \code{data}: Optional data frame containing intermediate results
+  \item \code{data}: Data frame with intermediate results
         (only if \code{dataRecord = TRUE}).
 }
 }
@@ -63,20 +67,52 @@ MC_CRUDE returns an object containing the following elements:
 Crude Monte Carlo simulation (MC_CRUDE) method for the estimation of failure
 probabilities in structural reliability analysis.
 
-The crude Monte Carlo method estimates the probability of failure
-by direct sampling of the basic random variables and evaluation
-of the limit-state function.
-
 The failure probability is estimated as
 \deqn{
   \hat{p}_f = \frac{1}{N}
   \sum_{i=1}^{N}
-  \mathbf{1}_{\{g(\mathbf{X}_i) \le 0\}}.
+  \mathbf{1}_{\{g(\mathbf{X}_i) < 0\}}.
 }
+
+Failure is defined as \eqn{g(x) < 0}. Samples with \eqn{g(x) = 0} are
+counted as safe.
 
 Although conceptually simple and unbiased, the method becomes
 computationally inefficient for very small failure probabilities,
 as a large number of samples is required to obtain stable estimates.
+}
+\details{
+\strong{Stopping criterion}
+
+The simulation stops when the coefficient of variation falls below
+\code{cov_user} or when \code{n_max} samples are reached. The last batch is
+reduced so that the total does not exceed \code{n_max}.
+
+\strong{Parallel execution}
+
+The samples of each batch are generated in the master process and split
+into chunks, which are evaluated in parallel. The workers do not generate
+random numbers.
+\itemize{
+  \item \code{backend = "future"}: the chunks are evaluated with
+    \code{future.apply::future_lapply()} under the active \pkg{future}
+    plan. The function never changes the plan. The number of workers is
+    determined by the plan, \code{use_threads} has no effect and issues a
+    warning if supplied.
+  \item \code{backend = "parallel"}: on Unix-like systems
+    \code{parallel::mclapply()} with \code{use_threads} cores is used. On
+    Windows a PSOCK cluster with \code{use_threads} workers is created for
+    the call and stopped afterwards. With \code{use_threads = 1}
+    \code{lapply()} is used.
+}
+
+\strong{Reproducibility}
+
+With a fixed \code{seed} the random numbers are generated from a
+L'Ecuyer-CMRG stream in the master process. The result therefore does not
+depend on the number of workers. The function sets
+\code{RNGkind("L'Ecuyer-CMRG")} and changes \code{.Random.seed} in the
+global environment.
 }
 \section{Limit-State Function (LSF) Interface}{
 
@@ -87,55 +123,29 @@ using one of the following supported signatures:
 \describe{
   \item{\code{function(x)}}{
     A single numeric vector \code{x} containing all basic variables
-    in the order defined in \code{lDistr}.
-
-    Example:
-    \preformatted{
-    lsf <- function(x) {
-      x[1] - sum((x[-1]^2) / seq_along(x)[-1])
-    }
-    }
+    in the order defined in \code{lDistr}. Recommended.
   }
-
   \item{\code{function(Z, Fy, M, ...)}}{
     Explicitly named scalar arguments corresponding to the variable
     names defined in the probabilistic model.
-
-    Example:
-    \preformatted{
-    lsf <- function(Z, Fy, M) {
-      Z * Fy - M
-    }
-    }
   }
 }
 
-The following form is \strong{not supported}:
-
-\preformatted{
-function(...)
-}
-
-Using \code{...} as the sole argument may lead to inconsistent
-behaviour across different reliability algorithms and is therefore
-prohibited.
-
-For maximum robustness and cross-method compatibility,
-the vector form \code{function(x)} is recommended.
+The use of \code{function(...)} as the sole argument is not supported.
 }
 
 \section{Windows users}{
 
 
-On Windows systems, it is recommended to use
-\code{backend = "future"} for multi-core parallelization.
-The \code{"parallel"} backend does not support forking on Windows.
+On Windows, \code{backend = "future"} with
+\code{future::plan(future::multisession, workers = ...)} is recommended.
+\code{backend = "parallel"} creates a new PSOCK cluster for every call.
 }
 
 \references{
 Spaethe, G. (1991).
 \emph{Die Sicherheit tragender Baukonstruktionen}.
-Springer.'
+Springer.
 }
 \author{
 (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),

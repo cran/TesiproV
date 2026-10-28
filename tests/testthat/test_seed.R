@@ -37,35 +37,34 @@ run_one_mc_is <- function(use_threads = 2,
                           n_max   = 5e4,
                           backend = "parallel") {
 
-  # 1) build the machine (no fixed seed if seed == NULL)
+  # use_threads only controls backend = "parallel",
+  # with backend = "future" the active plan sets the workers
+  opts <- list(
+    n_max       = n_max,
+    cov_user    = 0.02,
+    n_batch     = n_batch,
+    backend     = backend,
+    seed        = seed,
+    dataRecord  = FALSE,
+    densityType = "norm"
+  )
+  if (backend == "parallel") opts$use_threads <- use_threads
+
   machine_mc_is <- PROB_MACHINE(
     name    = "MC IS (test)",
     fCall   = "MC_IS",
-    options = list(
-      n_max       = n_max,
-      cov_user    = 0.02,
-      use_threads = use_threads,
-      n_batch     = n_batch,
-      backend     = backend,
-      seed        = seed,          # <- the argument we are testing
-      dataRecord  = FALSE,
-      densityType = "norm"
-    )
+    options = opts
   )
 
-  # 2) build the SYS_PROB object that holds everything
   ps <- SYS_PROB(
     sys_input    = list(make_demo_lsf()),
     probMachines = list(machine_mc_is),
     debug.level  = 0
   )
 
-  # 3) run the machines and return the *single* beta value
   ps$runMachines()
-  # `beta_single` is a matrix, we pick the first (and only) entry
   as.numeric(ps$beta_single)
 }
-
 
 
 # -----------------------------------------------------------------

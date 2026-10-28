@@ -1,0 +1,105 @@
+#' Student t Distribution
+#'
+#' Density, distribution function, quantile function and random generation
+#' for the Student t distribution.
+#'
+#' The cumulative distribution function is given by
+#' \deqn{
+#' F_X(x) =
+#' F_{t_{\nu}}\left(
+#' \frac{x-m}{s}
+#' \sqrt{\frac{n}{n+1}}
+#' \right),
+#' }
+#' where \eqn{F_{t_{\nu}}(\cdot)} denotes the cumulative distribution
+#' function of a Student t distribution with \eqn{\nu} degrees of freedom.
+#'
+#' The Student t distribution arises as the marginal
+#' distribution of a normal distributed variable with conjugate
+#' normal-gamma prior uncertainty in \eqn{m} and \eqn{s}.
+#'
+#' The hyperparameter vector \code{hyper.param} is defined as
+#' \deqn{(m, s, n, \nu)}
+#' where
+#' \itemize{
+#'   \item \eqn{m} is the mean value of an equivalent sample of size \eqn{n},
+#'   \item \eqn{s} is the empirical standard deviation of an equivalent sample
+#'         of size \eqn{\nu + 1},
+#'   \item \eqn{\nu} denotes the degrees of freedom of the Student t distribution.
+#' }
+#'
+#' For details see:
+#' \url{https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/TDist}
+#'
+#' @name StudentT
+#' @aliases StudentT st
+#'
+#' @param x,q Vector of quantiles.
+#' @param p Vector of probabilities.
+#' @param n_vals Number of random values to generate.
+#' @param hyper.param Numeric vector \eqn{(m, s, n, \nu)}.
+#'
+#' @return
+#' \itemize{
+#'   \item \code{dst()} returns the density.
+#'   \item \code{pst()} returns the distribution function.
+#'   \item \code{qst()} returns the quantile function.
+#'   \item \code{rst()} generates random deviates.
+#' }
+#'
+#' @examples
+#' hp <- c(40, 4, 3, 10)
+#' dst(0.5, hp)
+#'
+#' @author
+#' (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux --
+#' Hochschule Biberach (until 2022), TU Dortmund University - Chair of Structural Concrete (since 2023)
+
+
+#' @rdname StudentT
+#' @export
+dst <- function(x, hyper.param){
+  m <- hyper.param[1]
+  s <- hyper.param[2]
+  n <- hyper.param[3]
+  v <- hyper.param[4]
+
+  s_trans <- s/sqrt(n/(n+1))
+  stats::dt((x - m)/s_trans, df = v) / s_trans
+}
+
+#' @rdname StudentT
+#' @export
+pst <- function(q, hyper.param){
+  m <- hyper.param[1]
+  s <- hyper.param[2]
+  n <- hyper.param[3]
+  v <- hyper.param[4]
+
+  s_trans <- s/sqrt(n/(n+1))
+  stats::pt((q - m)/s_trans, df = v)
+}
+
+#' @rdname StudentT
+#' @export
+qst <- function(p, hyper.param){
+  m <- hyper.param[1]
+  s <- hyper.param[2]
+  n <- hyper.param[3]
+  v <- hyper.param[4]
+
+  s_trans <- s/sqrt(n/(n+1))
+  m + s_trans * stats::qt(p, df = v)
+}
+
+#' @rdname StudentT
+#' @export
+rst <- function(n_vals, hyper.param){
+  m <- hyper.param[1]
+  s <- hyper.param[2]
+  n <- hyper.param[3]
+  v <- hyper.param[4]
+
+  s_trans <- s/sqrt(n/(n+1))
+  m + s_trans * stats::rt(n_vals, df = v)
+}

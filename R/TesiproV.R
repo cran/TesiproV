@@ -26,4 +26,17 @@
 #' @author (C) 2021-2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022),
 #' TU Dortmund University - Chair of Structural Concrete (since 2023)
 #'
+#' @import methods
+#' @import pracma
+#' @import nloptr
+#' @import digest
+#' @import parallel
+#' @import future
+#' @import future.apply
+#' @importFrom stats dnorm pnorm qnorm rnorm
+#' @importFrom utils str
+#' @importFrom graphics lines legend
+#' @importFrom EnvStats demp pemp qemp remp
+#' @importFrom evd dgumbel pgumbel qgumbel rgumbel
+#'
 "_PACKAGE"

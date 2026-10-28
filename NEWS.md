@@ -1,3 +1,48 @@
+# TesiproV 1.0.0
+
+Consolidated release of the package, based on more than two years of use.
+New in this version: the influence of quality controls on the distribution of 
+basic variables can be taken into account.
+
+## New: quality control
+- The influence of quality controls on the distribution of a basic variable
+  can now be taken into account. A sampling plan is defined with the new
+  class `PROB_QUALCON`. The conformity criterion of EN 206 for the compressive
+  strength (`"fck_EN-206"`) and an attribute plan for dimensions and other
+  characteristics (`"dim_k||n"`) are available. The acceptance probability of
+  a plan (OC curve) can be computed, plotted or entered manually.
+- `PROB_BASEVAR$updateBasevar()` returns the basic variable after acceptance of
+  the lot (posterior distribution). The prior must be a Student-t (`"st"`) or
+  log-Student-t (`"lt"`) distribution with hyperparameters. The message compares
+  mean value and standard deviation of prior and posterior.
+- The vignette contains a new section with examples.
+
+## System reliability
+- The importance sampling for systems (`"MCIS"`) was revised. It estimates the
+  system failure probability more accurately and also handles parallel systems
+  whose design points are far apart.
+- Available methods of `calculateSystemProbability()`: `"simpleBounds"`,
+  `"MCIS"`, `"MCC"` (crude Monte Carlo) and `"MCSUS"` (subset simulation).
+  FORM and SORM provide single results, which enter the simple bounds. A system
+  analysis by FORM or SORM is not available.
+- Variables that are shared by several limit-state functions must have the
+  same `Name`.
+- The effective sample size reported by `MC_IS` now counts the samples in the
+  failure domain.
+
+## Other changes
+- FORM with `optim_type = "auto"` (default) switches to a second solver if the
+  first one does not converge. The result field `fallback` shows whether this
+  happened.
+- The console output of the Monte Carlo methods is reduced and controlled by
+  `debug.level`.
+- `PROB_BASEVAR$plot()` plots the probability density of a basic variable. For a variable created by `updateBasevar()`, the prior distribution can be added with `prior = TRUE` and the fitted curve and the empirical resample with `compare = TRUE`.
+- Option descriptions and notes on parallel computing in the vignette were
+  updated.
+
+
+---
+
 # TesiproV 0.9.6
 
 ## MC_IS estimator correction and reliability analysis improvements
@@ -96,4 +141,4 @@ Changed RNG handling in parallel approach.
 
 ---
 
-© 2021–2026 K. Nille-Hauf, T. Feiri, M. Ricker, T. Lux -- Hochschule Biberach (until 2022), TU Dortmund University – Chair of Structural Concrete (since 2023)
+© 2021–2026 T. Lux, K. Nille-Hauf, T. Feiri, M. Ricker -- Hochschule Biberach (until 2022), TU Dortmund University – Chair of Structural Concrete (since 2023)

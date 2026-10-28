@@ -5,16 +5,16 @@
 # library(TesiproV)   # das zu testende Paket
 
 test_that("gleiche RNG-Seeds -> identische MC-Ergebnisse (reproduzierbar)", {
-
+  skip_on_cran()
   ## ---------------------------------------------------------------
   ## 1) Plattform‑abhängige Thread‑Anzahl (Windows → 1, sonst 2)
   ## ---------------------------------------------------------------
-  if (.Platform$OS.type == "windows") {
-    future::plan(future::multisession)
-    use_threads <- 2L
-  } else {
-    use_threads <- 2L # klein, damit der Test schnell läuft
-  }
+  # if (.Platform$OS.type == "windows") {
+  #   future::plan(future::multisession)
+  #   use_threads <- 2L
+  # } else {
+  #   use_threads <- 2L # klein, damit der Test schnell läuft
+  # }
 
   ## ---------------------------------------------------------------
   ## 2) Basis‑Variablen (ohne DistributionPackage)
@@ -66,7 +66,7 @@ test_that("gleiche RNG-Seeds -> identische MC-Ergebnisse (reproduzierbar)", {
       options = list(
         n_max = 5e5, # genug, damit die Simulation fertig wird
         cov_user = 0.05,
-        use_threads = use_threads,
+        backend = "future",
         seed = seed_val # <-- entscheidender Seed
       )
     )
@@ -91,10 +91,21 @@ test_that("gleiche RNG-Seeds -> identische MC-Ergebnisse (reproduzierbar)", {
   ## ---------------------------------------------------------------
   ## 5) Zwei unabhängige Läufe mit exakt demselben Seed
   ## ---------------------------------------------------------------
-  set.seed(99) # Master‑Seed – hat keinen Einfluss,
-  # weil jede Maschine ihren eigenen Seed nutzt
-  res_a <- run_one(seed_val = 1234) # erster Durchlauf
-  res_b <- run_one(seed_val = 1234) # zweiter Durchlauf (gleicher Seed)
+  results <- with_test_future_plan(
+    future::multisession,
+    {
+      set.seed(99)
+
+      list(
+        res_a = run_one(seed_val = 1234),
+        res_b = run_one(seed_val = 1234)
+      )
+    },
+    workers = 2L
+  )
+
+  res_a <- results$res_a
+  res_b <- results$res_b
 
   ## ---------------------------------------------------------------
   ## 6) Ergebnis‑Auswertung
@@ -169,7 +180,6 @@ test_that("invalid densityType erzeugt einen erklärenden Fehler", {
       cov_user = 0.10,
       n_batch = 1000,
       n_max = 1e5,
-      use_threads = 2,
       backend = backend,
       densityType = "not_a_distribution", # <‑ falscher Typ
       seed = 111,
@@ -200,7 +210,6 @@ test_that("n_batch = 0 führt zu einem Fehler", {
       cov_user = 0.10,
       n_batch = 0,
       n_max = 1e5,
-      use_threads = 2,
       backend = backend,
       seed = 111,
       dataRecord = FALSE

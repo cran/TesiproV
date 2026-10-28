@@ -1,6 +1,3 @@
-
-<!-- README.md is generated from README.Rmd. Please edit that file -->
-
 # TesiproV
 
 <!-- badges: start -->
@@ -12,39 +9,187 @@ several state-of-the-art algorithms (FORM, SORM, MVFOSM and Monte-Carlo
 methods) and supports parametric studies through reference classes such
 as `SYS_PROB`, `SYS_PARAM`, and `SYS_LSF`.
 
+## Class structure
+
+TesiproV is built around reference classes for modelling probabilistic
+systems, limit-state functions, basic variables, and reliability methods.
+
+```mermaid
+classDiagram
+    direction TB
+
+    class SYS_PROB {
+        +sys_input
+        +sys_type
+        +probMachines
+        +beta_single
+        +beta_sys
+        +runMachines()
+        +calculateSystemProbability()
+        +printResults()
+    }
+
+    class SYS_PARAM {
+        +beta_params
+        +res_params
+        +runMachines()
+    }
+
+    class SYS_LSF {
+        +name
+        +expr
+        +func
+        +vars
+        +check()
+        +getLSF()
+    }
+
+    class PARAM_LSF
+
+    class PROB_BASEVAR {
+        +Id
+        +Name
+        +DistributionType
+        +Mean
+        +Sd
+        +prepare()
+        +getlDistr()
+    }
+
+    class PROB_DETVAR {
+        +Value
+    }
+
+    class PARAM_BASEVAR {
+        +ParamValues
+        +ParamType
+        +nextParam()
+    }
+
+    class PARAM_DETVAR {
+        +ParamValues
+        +nextParam()
+    }
+
+    class PROB_MACHINE {
+        +name
+        +fCall
+        +options
+    }
+
+    class PROB_QUALCON {
+        +ConformityType
+        +ConformityParam
+        +NSim
+        +DefectLimitLower
+        +DefectLimitUpper
+        +var
+        +getOC()
+        +plot()
+    }
+
+    SYS_PROB <|-- SYS_PARAM
+    SYS_LSF <|-- PARAM_LSF
+
+    PROB_BASEVAR <|-- PROB_DETVAR
+    PROB_BASEVAR <|-- PARAM_BASEVAR
+    PROB_BASEVAR <|-- PARAM_DETVAR
+
+    SYS_PROB "1" *-- "0..*" SYS_LSF : sys_input
+    SYS_PROB "1" *-- "0..*" PROB_MACHINE : probMachines
+    SYS_LSF "1" *-- "0..*" PROB_BASEVAR : vars
+    PROB_QUALCON "1" o-- "1" PROB_BASEVAR : var
+```
+
+## Architecture
+
+TesiproV separates the probabilistic model from the numerical solution
+algorithms.
+
+The probabilistic model is represented by reference classes:
+
+- `SYS_PROB` represents a reliability system and combines one or more
+  limit-state functions with one or more analysis methods.
+- `SYS_LSF` defines a limit-state function and its associated basic
+  variables.
+- `PROB_BASEVAR` represents a probabilistic basic variable including its
+  distribution model and parameters.
+- `PROB_MACHINE` stores the configuration of an analysis method.
+- `SYS_PARAM` extends `SYS_PROB` to perform parametric studies.
+- `PROB_QUALCON` describes a quality-control sampling plan for a basic
+  variable and computes its OC curve. `PROB_BASEVAR$updateBasevar()` uses
+  it to derive the distribution of the variable after acceptance.
+
+The numerical reliability algorithms are implemented as functions.
+This includes FORM, SORM, MVFOSM, crude Monte Carlo simulation,
+importance sampling, and subset simulation.
+
+This separation allows the algorithms to be used both through a `SYS_PROB` object and directly as standalone functions where appropriate.
+
+**Note:** The reliability algorithms are intentionally implemented as
+functions rather than reference classes. This keeps the public API
+simple and allows direct use of individual methods independently from
+the system-model classes.
+
+### Typical analysis workflow
+
+```mermaid
+flowchart LR
+    A["Define basic variables<br/>PROB_BASEVAR"] --> B["Define limit-state function<br/>SYS_LSF"]
+    B --> C["Configure analysis method<br/>PROB_MACHINE"]
+    C --> D["Build reliability system<br/>SYS_PROB"]
+
+    D --> E["Run component analyses<br/>$runMachines()"]
+    E --> F["Results<br/>beta_single / res_single"]
+
+    D --> G["Optional system analysis<br/>$calculateSystemProbability()"]
+    G --> H["System results<br/>beta_sys / res_sys"]
+```
+
+
 ## Installation
 
-The stable release will be available on CRAN soon. Until then you can
-install directly from our GitLab server:
+The stable release of TesiproV is available on CRAN:
+
+``` r
+install.packages("TesiproV")
+```
+
+The development version can be installed from the GitLab server of
+TU Dortmund University:
 
 ``` r
 # install.packages("remotes")
 remotes::install_gitlab("ls-massivbau/tesiprov", host = "gitlab.tu-dortmund.de")
 ```
 
-You can install the development version of TesiproV via the gitLab
-Server of the TU Dortmund University:
-<https://gitlab.tu-dortmund.de/ls-massivbau/tesiprov>
-
-If you need any permissions, please contact the project authors (see
-below).
+Repository: <https://gitlab.tu-dortmund.de/ls-massivbau/tesiprov>.
+If you need any permissions, please contact the project authors (see below).
 
 ## Parallel computing configuration
 
-TesiproV automatically configures parallel execution using the parallel
-and future packages. By default up to 4 cores are used for outer
-parallelisation (ProbMachines), while inner Monte-Carlo simulations
-manage their own threads. You can change this behaviour with environment
-variables before loading the package:
+The Monte Carlo methods `MC_CRUDE()` and `MC_IS()` can evaluate the limit-state
+function in parallel. Without the argument `backend` they run sequentially on
+every system. TesiproV never changes the global `future` plan.
 
-``` r
-Sys.setenv(TesiproV.max_workers = "8") # allow up to 8 workers
-Sys.setenv(TesiproV.future = "multisession") # choose backend explicitly
-library(TesiproV)
-```
+- `backend = "future"`: the chunks are evaluated under the active `future`
+  plan, which also determines the number of workers. Set the plan yourself:
 
-For details see the help page of `.onLoad()` or your system’s
-documentation.
+  ``` r
+  future::plan(future::multisession, workers = 4) # Windows
+  future::plan(future::multicore, workers = 4)    # Linux / macOS
+  ```
+
+- `backend = "parallel"`: `use_threads` sets the number of workers
+  (`mclapply()` on Linux / macOS, a PSOCK cluster on Windows).
+
+All random numbers are generated in the master process. With a fixed `seed`
+the result does not depend on the number of workers.
+
+Worker processes (backend `multisession` or PSOCK) load the **installed**
+version of TesiproV. Install the package before running parallel analyses.
+Loading the source with `devtools::load_all()` is not sufficient for the
+workers.
 
 ## Example
 
@@ -86,7 +231,8 @@ pvar <- PARAM_BASEVAR(
   Name = "E_mod",
   DistributionType = "norm",
   ParamType = "Mean",
-  ParamValues = c(30e3, 35e3, 40e3)
+  ParamValues = c(30e3, 35e3, 40e3),
+  Sd = 3000
 )
 
 lsf_param <- SYS_LSF(vars = list(pvar), name = "ParamStudy")
@@ -104,7 +250,76 @@ ps_param$runMachines()
 print(ps_param$beta_params)
 ```
 
+## System reliability
+
+`SYS_PROB$calculateSystemProbability(calcType, params)` evaluates systems
+of several limit-state functions (`sys_type = "serial"` or `"parallel"`).
+Available methods:
+
+| `calcType` | Method |
+|------------|--------|
+| `"simpleBounds"` | Bounds from the single reliability indices of `runMachines()`. The machines can be FORM, SORM or others. |
+| `"MCIS"` | Importance sampling for serial and parallel systems. |
+| `"MCC"` | Crude Monte Carlo on the system limit-state function. |
+| `"MCSUS"` | Subset simulation on the system limit-state function. |
+
+A system analysis by FORM or SORM is not available. SORM and FORM only
+provide single results that enter the simple bounds.
+
+## Quality control and Bayesian updating
+
+`PROB_QUALCON` defines a sampling plan and computes its OC curve, i.e. the
+acceptance probability as a function of the defect fraction. The plan is
+chosen with `ConformityType`:
+
+- `"fck_EN-206"`: conformity criterion of EN 206 for the compressive
+  strength. `ConformityParam = c(n)` holds the sample size. The OC curve is
+  simulated, the Monte-Carlo sample size per defect fraction is set with the
+  field `NSim` (default 100000). The characteristic strength $f_{ck}$ is
+  given as `DefectLimitLower`.
+- `"dim_k||n"`: attribute plan, a lot is accepted if at most `c_accept` of
+  `n` units are defective. `ConformityParam = c(n, c_accept)`. A unit is
+  defective if it lies below `DefectLimitLower` or above
+  `DefectLimitUpper`. Both limits are freely selectable.
+
+`DefectLimitLower` and `DefectLimitUpper` only define when a unit counts
+as defective. The acceptance criterion is determined by the sampling plan.
+The OC curve can also be specified manually with `theta_grid` and
+`Pa_grid`.
+
+``` r
+fc <- PROB_BASEVAR(Id = 1, Name = "fc", DistributionType = "lt",
+                   DistributionParameters = c(3.75, 0.105, 3, 10))
+
+plan <- PROB_QUALCON(Name = "EN206_n15", ConformityType = "fck_EN-206",
+                     ConformityParam = c(15), DefectLimitLower = 30, var = fc)
+plan$getOC()
+plan$plot()
+
+fc_post <- fc$updateBasevar(plan)
+```
+
+The prior variable must have the distribution type `"st"` (Student-t) or
+`"lt"` (log-Student-t) with the hyperparameters `c(m', s', n', v')`.
+`updateBasevar()` returns a new `PROB_BASEVAR` and leaves the prior
+unchanged.
+
 ## Recent changes
+
+Version 1.0.0 is a consolidated release based on more than two years of
+use. It solves single limit-state functions as well as systems.
+
+- New: quality control with `PROB_QUALCON` (plans `"fck_EN-206"` and
+  `"dim_k||n"` with freely selectable defect limits) and Bayesian updating
+  via `PROB_BASEVAR$updateBasevar()`.
+- Revised importance sampling for systems (`"MCIS"`) and an overview of the
+  available system methods (see above).
+- `MC_CRUDE` and `MC_IS` never change the active `future` plan. Without
+  `backend` they run sequentially.
+- FORM with `optim_type = "auto"` reports a switch from SLSQP to iHLRF in
+  the result field `fallback`.
+- Parallel workers need the installed package, no further packages have
+  to be installed separately.
 
 Version 0.9.5 introduces major refactoring:
 
@@ -114,6 +329,7 @@ Version 0.9.5 introduces major refactoring:
 - Enhanced error handling in `$check()` for limit-state functions.
 - Automatic parallel plan configuration via `.onLoad()` with capped
   worker pool (default 4 cores).
+- Added new distribution type: Empirical (`"emp"`).
 
 For a complete changelog see **NEWS.md**.
 
@@ -125,19 +341,18 @@ and detailed explanations for each object class.
 You can open it directly in R:
 
 ``` r
-vignette("TesiproV")
-#> Warning: vignette 'TesiproV' not found
+vignette("TesiproV-Vignette")
 ```
 
 # Contact & Citation
 
 If you use TesiproV for research or teaching, please cite it as:
 
-> Nille-Hauf K., Lux T., Feiri T., Ricker M. (2026): *TesiproV —
+> Lux T., Nille-Hauf K., Feiri T., Ricker M. (2026): *TesiproV —
 > Probabilistic Reliability Analysis Framework*. TU Dortmund University.
 
 For questions or bug reports please contact
-<massivbau.ab@tu-dortmund.de>.
+<tesiprov.lmb.ab@tu-dortmund.de>.
 
 ------------------------------------------------------------------------
 
@@ -148,5 +363,5 @@ License](https://opensource.org/licenses/MIT).
 You are free to use, modify and redistribute the software provided that
 the original copyright notice and license terms are retained.
 
-© 2021-2026 Konstantin Nille-Hauf, Til Lux, Tania Feiri, Marcus Ricker —
-Hochschule Biberach / TU Dortmund University.
+© 2021-2026 Til Lux, Konstantin Nille-Hauf, Tania Feiri, Marcus Ricker —
+TU Dortmund University / Hochschule Biberach.

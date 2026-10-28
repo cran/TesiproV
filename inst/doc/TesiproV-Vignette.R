@@ -24,7 +24,7 @@ var_fck <- PROB_BASEVAR(
 )
 
 ## -----------------------------------------------------------------------------
-var.f_ck <- PROB_BASEVAR(Id = 1, Name = "f_ck", Description = "Char. Betondruckfestigkeit", Package = "TesiproV", DistributionType = "lt", DistributionParameters = c(3.85, 0.09, 3, 10))
+var.f_ck <- PROB_BASEVAR(Id = 1, Name = "f_ck", Description = "Concrete compressive strength", Package = "TesiproV", DistributionType = "lt", DistributionParameters = c(3.85, 0.09, 3, 10))
 
 ## -----------------------------------------------------------------------------
 pvar_d <- PARAM_BASEVAR(
@@ -42,6 +42,46 @@ var.gamma_c <- PROB_DETVAR(Id = 1, Name = "gamma_c", Description = "PSF Concrete
 
 ## -----------------------------------------------------------------------------
 var.V_Ed <- PARAM_DETVAR(Id = 1, Name = "V_Ed", Description = "applied shear force", ParamValues = c(1, 2, 3, 4, seq(5, 10, 0.5)))
+
+## ----message=FALSE------------------------------------------------------------
+set.seed(1)
+fc <- PROB_BASEVAR(
+  Id = 1, Name = "fc", Description = "Concrete compressive strength",
+  DistributionType = "lt", DistributionParameters = c(3.75, 0.105, 3, 10)
+)
+
+plan <- PROB_QUALCON(
+  Name = "EN206_n15", ConformityType = "fck_EN-206",
+  ConformityParam = 15, NSim = 20000, DefectLimitLower = 30, var = fc
+)
+plan$getOC()
+
+## ----fig.width=6, fig.height=4------------------------------------------------
+plan$plot()
+
+## -----------------------------------------------------------------------------
+fc_post <- fc$updateBasevar(plan)
+
+## -----------------------------------------------------------------------------
+c(Mean = fc_post$Mean, Sd = fc_post$Sd)
+
+## ----fig.width=6, fig.height=4------------------------------------------------
+fc_post$plot(prior = TRUE)
+
+## ----message=FALSE------------------------------------------------------------
+cover <- PROB_BASEVAR(
+  Id = 2, Name = "cover", DistributionType = "st",
+  DistributionParameters = c(30, 2, 3, 10)
+)
+plan_cover <- PROB_QUALCON(
+  Name = "cover_plan", ConformityType = "dim_k||n", ConformityParam = c(10, 1),
+  DefectLimitLower = 27, DefectLimitUpper = 33, var = cover
+)
+plan_cover$getOC()
+cover_post <- cover$updateBasevar(plan_cover)
+
+## ----fig.width=6, fig.height=4------------------------------------------------
+cover_post$plot(prior = TRUE)
 
 ## -----------------------------------------------------------------------------
 var1 <- PROB_BASEVAR(Name = "E", Description = "Effect", DistributionType = "norm", Mean = 10, Sd = 1)
@@ -105,7 +145,7 @@ ps$runMachines()
 ps$beta_single
 
 ## -----------------------------------------------------------------------------
-# Systemberechnungn (System aus zwei gleichen LSF´s)
+# System calculation (System of two identical LSFs)
 ps_sys <- SYS_PROB(
   sys_input = list(lsf, lsf),
   probMachines = list(machine),
@@ -127,7 +167,7 @@ pvar_F_mod <- PARAM_BASEVAR(
 
 # yield strength in kN, for Mean the mean of the unshifted distribution must be specified.
 fy <- PROB_BASEVAR(
-  Name = "fy", DistributionType = "slnorm", Package = "brms", Mean = 265000, Sd = 25000, x0 = 160000
+  Name = "fy", DistributionType = "slnorm", Package = "TesiproV", Mean = 265000, Sd = 25000, x0 = 160000
 )
 
 # plastic moment of resistance in m³ - considered deterministic in this example
@@ -172,7 +212,8 @@ plot(para_values, beta_values, type = "l", xlab = "Force F [kN]", ylab = "Reliab
 # library(future)
 # plan(multisession, workers = 8)
 # 
-# MC_IS(..., backend = "future")If no future plan is set, execution will be sequential.
+# MC_IS(..., backend = "future")
+# # If no future plan is set, execution will be sequential.
 
 ## ----eval=FALSE---------------------------------------------------------------
 # 250,000 -- 500,000
@@ -197,16 +238,17 @@ plot(para_values, beta_values, type = "l", xlab = "Force F [kN]", ylab = "Reliab
 # 
 # ps$runMachines()
 # 
-# local_beta <- ps$beta
-# local_runtime <- ps$res_single[[1]][[1]]$runtime
+# local_beta <- ps$beta_params
+# local_runtime <- ps$res_params[[1]][[1]][[1]]$runtime
 # 
 # # define path with setwd("...")
-# ps$printResults("result_file") # Prints a report file in .txt format with all informations about the calculation
-# ps$saveProject(4, "project_file") # stores the project in a file
+# ps$printResults("result_file") # report file result_file.txt
+# ps$saveProject(2, "project_file") # results in project_file_res.rds
+# ps$saveProject(4, "project_file") # workspace in project_file.RData
 
 ## ----eval = FALSE-------------------------------------------------------------
-# readRDS("example_proj_res.rds")
-# load("example_proj.RData")
+# readRDS("project_file_res.rds")
+# load("project_file.RData")
 
 ## ----results="hide"-----------------------------------------------------------
 Var1 <- PROB_BASEVAR(Id = 1, Name = "X1", DistributionType = "norm", Mean = 0.25, Sd = 1) # kN/m²
@@ -229,7 +271,6 @@ ps$runMachines()
 ps$beta_single
 
 ## ----results ='hide'----------------------------------------------------------
-library("evd")
 X1 <- PROB_BASEVAR(Id = 1, Name = "Z", DistributionType = "norm", Mean = 100, Cov = 0.04) # kN/m²
 X2 <- PROB_BASEVAR(Id = 2, Name = "Fy", DistributionType = "lnorm", Mean = 40, Cov = 0.1) # m
 X3 <- PROB_BASEVAR(Id = 2, Name = "M", DistributionType = "gumbel", Package = "evd", Mean = 2000, Cov = 0.1) # m
@@ -286,44 +327,64 @@ ps$beta_sys
 
 ## ----eval = FALSE-------------------------------------------------------------
 # params <- list("cov_user" = 0.05, "n_max" = 50000)
-# ps$calculateSystemProbability("MC", params)
+# ps$calculateSystemProbability("MCC", params)
 # 
-# params <- list("cov_user" = 0.05, "n_max" = 50000)
 # ps$calculateSystemProbability("MCIS", params)
 # 
-# ps$calculateSystemProbability("MCSUS", params)
+# params_sus <- list("Nsubset" = 10000, "p0" = 0.1)
+# ps$calculateSystemProbability("MCSUS", params_sus)
+
+## ----results="hide", message=FALSE--------------------------------------------
+E <- PROB_BASEVAR(Id = 3, Name = "E", Description = "Action effect",
+                  DistributionType = "norm", Mean = 25, Sd = 3)
+
+form <- PROB_MACHINE(name = "FORM", fCall = "FORM")
+
+lsf_prior <- SYS_LSF(vars = list(fc, E), name = "Prior")
+lsf_prior$func <- function(fc, E) fc - E
+lsf_prior$check()
+
+lsf_post <- SYS_LSF(vars = list(fc_post, E), name = "Posterior")
+lsf_post$func <- function(fc, E) fc - E
+lsf_post$check()
+
+ps <- SYS_PROB(sys_input = list(lsf_prior, lsf_post), probMachines = list(form))
+ps$runMachines()
+
+## -----------------------------------------------------------------------------
+ps$beta_single
 
 ## ----results="hide", warning=FALSE--------------------------------------------
-var.d <- PARAM_BASEVAR(Id = 1, Name = "d", Description = "Stat. Nutzhöhe", DistributionType = "norm", Sd = 10, ParamType = "Mean", ParamValues = c(seq(200, 800, 50), seq(1000, 3000, 100)) + 10)
+var.d <- PARAM_BASEVAR(Id = 1, Name = "d", Description = "Effective depth", DistributionType = "norm", Sd = 10, ParamType = "Mean", ParamValues = c(seq(200, 800, 50), seq(1000, 3000, 100)) + 10)
 pre.d <- c(seq(200, 800, 50), seq(1000, 3000, 100))
 
-var.f_ck <- PROB_BASEVAR(Id = 2, Name = "f_ck", Description = "Char.Betondruckfestigkeit", Package = "TesiproV", DistributionType = "lt", DistributionParameters = c(3.85, 0.09, 3, 10))
+var.f_ck <- PROB_BASEVAR(Id = 2, Name = "f_ck", Description = "Concrete compressive strength", Package = "TesiproV", DistributionType = "lt", DistributionParameters = c(3.85, 0.09, 3, 10))
 pre.f_ck <- 35
 
-var.f_ywk <- PROB_BASEVAR(Id = 3, Name = "f_ywk", Description = "Zugfestigkeit Bügelbewehrung", DistributionType = "norm", Mean = 560, Cov = 0.02)
+var.f_ywk <- PROB_BASEVAR(Id = 3, Name = "f_ywk", Description = "Yield strength of shear reinforcement", DistributionType = "norm", Mean = 560, Cov = 0.02)
 pre.f_ywk <- 500
 
-var.f_yk <- PROB_BASEVAR(Id = 4, Name = "f_yk", Description = "Zugfestigkeit Längsbewehrung", DistributionType = "norm", Mean = 560, Sd = 30)
+var.f_yk <- PROB_BASEVAR(Id = 4, Name = "f_yk", Description = "Yield strength of longitudinal reinforcement", DistributionType = "norm", Mean = 560, Sd = 30)
 pre.f_yk <- 500
 
-var.rho_l <- PROB_BASEVAR(Id = 5, Name = "rho_l", Description = "Biegebewehrungsgrad", DistributionType = "norm", Mean = 0.01, Cov = 0.02)
+var.rho_l <- PROB_BASEVAR(Id = 5, Name = "rho_l", Description = "Longitudinal reinforcement ratio", DistributionType = "norm", Mean = 0.01, Cov = 0.02)
 pre.rho_l <- var.rho_l$Mean
 
-var.c_D <- PROB_BASEVAR(Id = 6, Name = "c_D", Description = "Stützendurchmesser", DistributionType = "norm", Mean = 500 + 0.003 * 500, Sd = 4 + 0.006 * 500)
+var.c_D <- PROB_BASEVAR(Id = 6, Name = "c_D", Description = "Column diameter", DistributionType = "norm", Mean = 500 + 0.003 * 500, Sd = 4 + 0.006 * 500)
 pre.c_D <- 500
 
-var.theta_c <- PROB_BASEVAR(Id = 7, Name = "theta_c", Description = "Modellunsicherheit c nach DIBT", DistributionType = "lnorm", Mean = 1.0644, Cov = 0.1679)
+var.theta_c <- PROB_BASEVAR(Id = 7, Name = "theta_c", Description = "Model uncertainty", DistributionType = "lnorm", Mean = 1.0644, Cov = 0.1679)
 
-var.gamma_c <- PROB_DETVAR(Id = 8, Name = "gamma_c", Description = "TSB Beton", Value = 1.5)
-var.gamma_s <- PROB_DETVAR(Id = 9, Name = "gamma_s", Description = "TSB Stahl", Value = 1.15)
-var.alpha_cc <- PROB_DETVAR(Id = 10, Name = "alpha_cc", Description = "Langzeitfaktor AlphaCC", Value = 0.85)
+var.gamma_c <- PROB_DETVAR(Id = 8, Name = "gamma_c", Description = "Partial safety factor concrete", Value = 1.5)
+var.gamma_s <- PROB_DETVAR(Id = 9, Name = "gamma_s", Description = "Partial safety factor steel", Value = 1.15)
+var.alpha_cc <- PROB_DETVAR(Id = 10, Name = "alpha_cc", Description = "Long-term factor alpha_cc", Value = 0.85)
 
 V_Ed <- c(
   0.6412447, 0.8760515, 1.1424185, 1.4399554, 1.7554079, 2.0188587, 2.3003489, 2.5997038, 2.9167825, 3.2514671, 3.6036567, 3.9732630,
   4.3602076, 6.0800504, 7.0424326, 8.0726216, 9.1702994, 10.3351829, 11.5670173, 12.8655715, 14.2306347, 15.6620132, 17.1595283, 18.7230145,
   20.3523175, 22.0472935, 23.8078076, 25.6337332, 27.5249511, 29.4813487, 31.5028193, 33.5892621, 35.7405811, 37.9566849
 )
-var.V_Ed <- PARAM_DETVAR(Id = 11, Name = "V_Ed", Description = "Einwirkende Querkraft", ParamValues = V_Ed)
+var.V_Ed <- PARAM_DETVAR(Id = 11, Name = "V_Ed", Description = "Applied shear force", ParamValues = V_Ed)
 
 lsf1 <- SYS_LSF(
   vars = list(

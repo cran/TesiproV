@@ -1,6 +1,6 @@
 ---
 title: "TesiproV – Reliability Analysis Methods for Structural Engineering"
-author: "Konstantin Nille-Hauf, Tania Feiri, Marcus Ricker, Til Lux"
+author: "Til Lux, Konstantin Nille-Hauf, Tania Feiri, Marcus Ricker"
 date: "`r format(Sys.Date(), '%Y-%m-%d')`"
 output: rmarkdown::html_vignette
 vignette: >
@@ -63,12 +63,16 @@ TesiproV implements several algorithms to estimate these quantities efficiently:
 These methods allow both single limit‑state analyses and complex system evaluations involving multiple interacting components.  
 In addition, TesiproV supports parametric studies where selected input parameters are systematically varied to investigate sensitivity or perform probabilistic optimisation.
 
+Independent of the solution algorithms, the effect of quality control on the distribution of a basic variable can be taken into account. Sampling plans with their operating characteristic (OC) curves are defined by `PROB_QUALCON`, and the posterior distribution of the controlled variable is derived by Bayesian updating. The updated variable is then used like any other basic variable in the reliability analysis.
+
 Since version 0.9.5 the entire code base has been refactored to improve consistency between probabilistic objects (`PROB_BASEVAR`, `SYS_LSF`, `SYS_PROB`, …), error handling in limit‑state functions (`$check()`), transformations between mean/standard deviation and native distribution parameters (`$prepare()`), and parallel execution via the **future** package was added.
+
+Version 1.0.0 is a consolidated release of the package, based on more than two years of use. It solves single limit-state functions as well as systems of several limit-state functions. Since this version, the influence of quality controls on the distribution of basic variables can also be taken into account (see the section on `PROB_QUALCON`).
 
 Beyond its computational capabilities, TesiproV aims to provide a transparent educational tool for understanding reliability theory in structural engineering practice.  
 Its object‑oriented design makes it straightforward to define new limit‑state functions, integrate additional distributions or link external solvers, e.g., for advanced Monte Carlo techniques.
 
-The project was originally initiated at Hochschule Biberach in cooperation with the Institue of Structural Concrete at RWTH Aachen University within a BMWi research program (*Allgemeingültiges Verfahren zur Herleitung von Teilsicherheitsbeiwerten im Massivbau auf Basis probabilistischer Verfahren anhand ausgewählter Versagensarten (TesiproV) – Erstellung eines Richtlinienentwurfs*, FKZ 03TNK003E) and is now maintained by the Chair of Structural Concrete at TU Dortmund University.
+The project was originally initiated at Hochschule Biberach in cooperation with the Institute of Structural Concrete at RWTH Aachen University within a BMWi research program (*Allgemeingültiges Verfahren zur Herleitung von Teilsicherheitsbeiwerten im Massivbau auf Basis probabilistischer Verfahren anhand ausgewählter Versagensarten (TesiproV) – Erstellung eines Richtlinienentwurfs*, FKZ 03TNK003E) and is now maintained by the Chair of Structural Concrete at TU Dortmund University.
 
 Source code repository: <https://gitlab.tu-dortmund.de/ls-massivbau/tesiprov>  
 License: [MIT](https://opensource.org/licenses/MIT)
@@ -120,17 +124,17 @@ Supported distributions include:
 |---------------|-------------|----------|--------------|
 | Normal | `"norm"` | stats | Gaussian distribution defined by mean and standard deviation |
 | Lognormal | `"lnorm"` | stats | Distribution of a variable whose logarithm is normally distributed |
-| Lognormal | `"slnorm"` | brms | shifted lognormal distribution |
-| Gumbel (Type I extreme value)  | `"gumbel"`  | evd  | Used for modeling maxima or minima (extreme values) |
-| Gamma  | `"gamma"`  | stats  | positive-valued model defined by shape and scale parameters |
-| Exponential  | `"exp"` | stats | special case of gamma with shape=1 |
-|"Beta"| `"beta"`| stats | bounded on [0,1]; often used for proportions or probabilities |
-|"Weibull"| `"weibull"`|stats| flexible positive-valued model for material strength or lifetime data|
-|"Student-t"|`"st"`|TesiproV internal| heavy-tailed continuous; useful for sensitivity analyses|
-|"Log-Student-t"| `"lt"`|TesiproV internal| extended heavy-tailed log-scale distribution|
-|"Empirical"| `"emp"`| evd | Empirical Distribution based on given Data|
-|"Binomial"| `"binom"`|stats| discrete count data; placeholder type|
-|"Uniform"|`"unif"`|stats| constant probability across an interval; placeholder type|
+| Shifted lognormal | `"slnorm"` | TesiproV | Lognormal distribution shifted by the lower bound x0 |
+| Gumbel (Type I extreme value) | `"gumbel"` | evd | Used for modelling maxima or minima (extreme values) |
+| Gamma | `"gamma"` | stats | Positive-valued model defined by shape and scale parameters |
+| Exponential | `"exp"` | stats | Special case of gamma with shape = 1 |
+| Beta | `"beta"` | stats | Bounded on [0,1], often used for proportions or probabilities |
+| Weibull | `"weibull"` | stats | Flexible positive-valued model for material strength or lifetime data |
+| Student-t | `"st"` | TesiproV | Heavy-tailed, marginal distribution of a normal variable with uncertain mean and standard deviation |
+| Log-Student-t | `"lt"` | TesiproV | Heavy-tailed, marginal distribution of a lognormal variable with uncertain parameters |
+| Empirical | `"emp"` | EnvStats | Empirical distribution based on given data |
+| Binomial | `"binom"` | stats | Discrete count data, placeholder type |
+| Uniform | `"unif"` | stats | Constant probability across an interval, placeholder type |
 
 
 Additional placeholders exist for future extensions.
@@ -156,8 +160,8 @@ var_fck <- PROB_BASEVAR(
 * DistributionType - Name of the distributionfunction (without the d, p, q or r)
 * Mean - Expected value (first statistical moment)
 * Sd - standard deviation (square root of second statistical moment)
-* Cov - cofficient of variation: Cov = Mean/Sd
-* X0 - location parameter, used for shifted log-normal distribution "slnorm"
+* Cov - coefficient of variation: Cov = Sd/Mean
+* x0 - location parameter, used for shifted log-normal distribution "slnorm"
 
 Internally TesiproV automatically derives all missing distribution parameters such as shape or scale parameters from the given expected value (mean) and standard deviation (square root of variance) if possible.
 
@@ -165,7 +169,7 @@ Basic variable using the example of concrete compressive strength.
 As distribution function a logStudentT-distribution adjusted within the package is used. For this distribution a d-, p-, q- and rlt-function is available, therefore Package = "TesiproV".
 
 ```{r}
-var.f_ck <- PROB_BASEVAR(Id = 1, Name = "f_ck", Description = "Char. Betondruckfestigkeit", Package = "TesiproV", DistributionType = "lt", DistributionParameters = c(3.85, 0.09, 3, 10))
+var.f_ck <- PROB_BASEVAR(Id = 1, Name = "f_ck", Description = "Concrete compressive strength", Package = "TesiproV", DistributionType = "lt", DistributionParameters = c(3.85, 0.09, 3, 10))
 ```
 
 ## Parametric random variables
@@ -186,9 +190,7 @@ pvar_d <- PARAM_BASEVAR(
 )
 ```
 
-During each iteration of a parametric study the corresponding value from `ParamValues` is assigned automatically.
-
-## Determistic variables
+## Deterministic variables
 
 If certain quantities are treated as deterministic constants rather than random variables, they can be modelled using `PROB_DETVAR`. Internally these are represented as normal distributions with infinitesimal standard deviation so that all algorithms remain compatible.
 
@@ -215,6 +217,110 @@ Note: Parametric variables are only considered for the parametric system object 
 var.V_Ed <- PARAM_DETVAR(Id = 1, Name = "V_Ed", Description = "applied shear force", ParamValues = c(1, 2, 3, 4, seq(5, 10, 0.5)))
 ```
 
+
+## Quality control and Bayesian updating (PROB_QUALCON)
+
+Quality controls (e.g. the conformity control of concrete or the inspection of dimensions on site) accept or reject a lot. An accepted lot is on average better than the prior assumption. TesiproV quantifies this effect: the object `PROB_QUALCON` describes the sampling plan and computes its OC curve, and `PROB_BASEVAR$updateBasevar()` derives the posterior distribution of the controlled basic variable.
+
+### Principle
+
+A lot is characterised by its defect fraction $\theta$, i.e. the share of units that violate a limit value. The OC curve gives the probability that the lot is accepted by the sampling plan:
+
+$$
+P_a(\theta)
+$$
+
+The distribution of the controlled variable is described by a Student-t (`"st"`) or log-Student-t (`"lt"`) distribution with the hyperparameters $c(m', s', n', v')$, which also express the uncertainty of the distribution parameters. Every parameter combination belongs to one defect fraction $\theta$ and is therefore weighted with its acceptance probability $P_a(\theta)$. The result is the outgoing distribution of the accepted lots. It is fitted by a new `"st"` or `"lt"` distribution. If the quality of the fit is not sufficient (`min_r2` in `updateBasevar()`), an empirical distribution is returned instead.
+
+The prior variable must therefore be defined with `DistributionType = "st"` or `"lt"` and the four hyperparameters in `DistributionParameters`.
+
+### Sampling plans
+
+The plan is chosen with the field `ConformityType`:
+
+* `"fck_EN-206"` with `ConformityParam = c(n)`: variable plan, conformity criterion of EN 206 for the compressive strength. A lot is accepted if the mean of `n` samples is at least $f_{ck} + 1.48 s$ and the smallest value at least $f_{ck} - 4$. The OC curve of this plan is simulated. The Monte Carlo sample size per defect fraction is set with the field `NSim` (default 100000).
+* `"dim_k||n"` with `ConformityParam = c(n, c_accept)`: attribute plan with a binomial model. A lot is accepted if at most `c_accept` of `n` units are defective. It can be used for any characteristic that is checked against tolerance values, e.g. concrete cover or dimensions.
+
+The fields `DefectLimitLower` and `DefectLimitUpper` only define when a single unit counts as defective. They are not the acceptance criterion, which is determined by the sampling plan alone.
+
+* For `"fck_EN-206"` the characteristic strength $f_{ck}$ is given as `DefectLimitLower` (in the unit of the variable). `DefectLimitUpper` must stay `Inf`.
+* For `"dim_k||n"` at least one of the two limits must be finite. Both limits are freely selectable and do not influence the OC curve, only the update.
+
+Fields and methods:
+
+* `var` - the `PROB_BASEVAR` the plan applies to.
+* `NSim` - Monte Carlo sample size per defect fraction for the simulation of the OC curve (only for `"fck_EN-206"`, default 100000).
+* `theta_grid` - defect fractions at which the OC curve is evaluated (default grid from 0.001 to 0.9).
+* `Pa_grid` - acceptance probabilities for `theta_grid`, filled by `$getOC()`.
+* `$getOC(force = FALSE)` - computes the OC curve. An existing curve is only recomputed with `force = TRUE`.
+* `$plot()` - plots the OC curve.
+* `$isStale()` - `TRUE` if the distribution of `var` has changed since `$getOC()` was run (the curve is then outdated), `NA` if no snapshot exists.
+* `$summary()` - short printed overview.
+
+If the OC curve of a plan is known from another source, it can be specified manually by passing `theta_grid` and `Pa_grid` of the same length. `ConformityParam` is then not needed. For `"fck_EN-206"` `DefectLimitLower` must still be set.
+
+### Example - variable plan for the concrete strength
+
+The compressive strength is modelled by a log-Student-t distribution with the hyperparameters $c(3.75, 0.105, 3, 10)$. The control follows EN 206 with 15 samples for $f_{ck} = 30$ N/mm².
+
+```{r, message=FALSE}
+set.seed(1)
+fc <- PROB_BASEVAR(
+  Id = 1, Name = "fc", Description = "Concrete compressive strength",
+  DistributionType = "lt", DistributionParameters = c(3.75, 0.105, 3, 10)
+)
+
+plan <- PROB_QUALCON(
+  Name = "EN206_n15", ConformityType = "fck_EN-206",
+  ConformityParam = 15, NSim = 20000, DefectLimitLower = 30, var = fc
+)
+plan$getOC()
+```
+
+```{r, fig.width=6, fig.height=4}
+plan$plot()
+```
+
+`updateBasevar()` returns a new `PROB_BASEVAR` object with the posterior distribution. The prior object stays unchanged. The message printed by `updateBasevar()` compares the mean value and the standard deviation of prior and posterior. For hyperparameter-defined variables the prior moments are exact for `"st"` with $v' > 2$. For `"lt"` they are not defined analytically and are therefore approximated numerically, which is marked in the message.
+
+```{r}
+fc_post <- fc$updateBasevar(plan)
+```
+
+The moments of the posterior are also available as fields of the new object:
+
+```{r}
+c(Mean = fc_post$Mean, Sd = fc_post$Sd)
+```
+
+Prior and posterior density can be compared with the argument `prior`:
+
+```{r, fig.width=6, fig.height=4}
+fc_post$plot(prior = TRUE)
+```
+
+### Example - attribute plan for the concrete cover
+
+At most one of ten measured values may be outside the limits 27 mm and 33 mm.
+
+```{r, message=FALSE}
+cover <- PROB_BASEVAR(
+  Id = 2, Name = "cover", DistributionType = "st",
+  DistributionParameters = c(30, 2, 3, 10)
+)
+plan_cover <- PROB_QUALCON(
+  Name = "cover_plan", ConformityType = "dim_k||n", ConformityParam = c(10, 1),
+  DefectLimitLower = 27, DefectLimitUpper = 33, var = cover
+)
+plan_cover$getOC()
+cover_post <- cover$updateBasevar(plan_cover)
+```
+
+The mean value remains unchanged, because the limits are symmetric about the prior mean. The standard deviation decreases.
+
+```{r, fig.width=6, fig.height=4}
+cover_post$plot(prior = TRUE)
+```
 
 ## Limit-state function object (SYS_LSF)
 
@@ -282,9 +388,14 @@ machine <- PROB_MACHINE(name = "MVFOSM", fCall = "MVFOSM", options = list("isExp
 
 Options:
 
-* n_optim - max. amount of evaulation runs
+* n_optim - max. amount of evaluation runs
 * loctol - local accuracy of the optimisation algorithm (if lower then this threshold, the optim stops)
-* OptimType - Algorithms one can choose: Rackwitz-Fiessler Algorithmus "rackfies" (quite stable) or Augmented Lagrange Solver "auglag" (fast but sometimes difficult)
+* optim_type - solver, one of
+    * `"auto"` (default) - SLSQP, with improved HLRF (iHLRF) as fallback if SLSQP does not converge. The result field `fallback` shows whether the fallback was used.
+    * `"slsqp"` - sequential quadratic programming (package nloptr), no fallback. Good for low-dimensional spaces
+    * `"ihlrf"` - improved HLRF with line search, no fallback.
+    * `"rackfies"` - Rackwitz-Fiessler iteration (classic HLRF), no fallback.
+    * `"auglag"` - Augmented Lagrange solver (nloptr) with random starts.
 
 Example:
 
@@ -308,14 +419,14 @@ machine <- PROB_MACHINE(name = "SORM", fCall = "SORM")
 
 Options:
 
-* cov_user=0.025 - abort criterion for Cov.
-* n_batch=100 - evaulations each step.
-* n_max=1e7 - abort cirterion for max cycles of evaluation
-* use_threads=6 - amount of threads for parallel computing (1 = single core calculation)
-* backend - parallel backend, eather "future" or "parallel", use "future" on Windows
-* dataRecord=TRUE - if true, there is a list() with all the data per calculation step in the result (used for visualization of beta)
-* debug.level=0 - Integer verbosity level (0 = silent, 1 = summary, 2 = detailed).
-* seed - Optional integer seed for reproducible rondom numbers. 
+* cov_user=0.05 - abort criterion for the CoV.
+* n_batch=10000 - samples per step.
+* n_max=1e7 - abort criterion for the maximum number of samples.
+* use_threads=NULL - number of workers for backend = "parallel" (default 1). Without effect for backend = "future".
+* backend=NULL - "future" or "parallel". If not set, the calculation runs sequentially.
+* dataRecord=TRUE - if TRUE, the results per step are returned in `data` (used for visualization of beta).
+* debug.level=0 - verbosity level (0 = silent, 1 = summary, 2 = detailed).
+* seed - optional integer seed for reproducible random numbers.
 
 Example:
 
@@ -327,18 +438,17 @@ machine <- PROB_MACHINE(name = "MC CoV 0.05", fCall = "MC_CRUDE", options = list
 
 Options:
 
-* cov_user=0.025 - abort criterion for cov.
-* n_batch=100 - evaulations each step.
-* n_max=1e7 - abort criterion for maximum cycles of evaluation
-* use_threads=4 - amount of cores for parallel computing (1 = single core calculation).
-* backend=NULL - parallel backend, either "future" or "parallel", use "future" on Windows.
-* sys_type="serial" - Character string, either "serial" or "parallel", specifying system configuration.
-* dataRecord=TRUE - If true, there is a list() with all the data per calculation step in the result (used for visualization of beta).
-* beta_l=100 - optional threshold; limit states with β > beta_l may be excluded in system analysis.
-* density Type - Sampling density type (currently "norm" supported).
-* dps - Optional vector of design points in physical space; if supplied, FORM analysis is skipped.
-* debug.level - Integer verbosity level (0 = silent, 1 = summary, 2 = detailed).
-* seed - Optional integer seed for reproducible rondom numbers. 
+* cov_user=0.05 - abort criterion for the CoV.
+* n_batch=5000 - samples per step.
+* n_max=1e6 - abort criterion for the maximum number of samples.
+* use_threads=NULL - number of workers for backend = "parallel" (default 1). Without effect for backend = "future".
+* backend=NULL - "future" or "parallel". If not set, the calculation runs sequentially.
+* sys_type="serial" - "serial" or "parallel", only used for systems.
+* dataRecord=TRUE - if TRUE, the results per step are returned in `data` (single limit-state function only).
+* dps - optional design points in physical space. If supplied, FORM is skipped (see `help("MC_IS")` for the format for systems).
+* stability_mode="robust" - "robust" or "fast", without influence on the result.
+* debug.level=0 - verbosity level (0 = silent, 1 = summary, 2 = detailed).
+* seed - optional integer seed for reproducible random numbers.
 
 Further options can be found in the documentation of MC_IS. Changing the options is not recommended for inexperienced users.
 
@@ -361,7 +471,7 @@ Options:
 * Alpha=0.05 - confidence level.
 * variance="uniform" - "gaussian" or "uniform".
 * debug.level - Integer verbosity level (0 = silent, 1 = summary, 2 = detailed).
-* seed - Optional integer seed for reproducible rondom numbers. 
+* seed - Optional integer seed for reproducible random numbers. 
 
 Example:
 
@@ -381,7 +491,7 @@ Two main classes exist:
 The `SYS_LSF` object already contains a list of the required basic variables. However, the system object still requires a list of functions to be calculated and the list of algorithms to be used.
 In addition, the `$sys_type` property can be used to specify whether the equations have a series `$sys_type="serial"` or parallel `$sys_type="parallel"` relationship. 
 
-The calculation process is then triggered with `$run_machines()`. In the console, the user is informed about the current state of the calculation. After completing the calculation, the results can be retrieved via the `SYS_PROB` object (in the example below `ps`). For more information see result interpretation.
+The calculation process is then triggered with `$runMachines()`. In the console, the user is informed about the current state of the calculation. After completing the calculation, the results can be retrieved via the `SYS_PROB` object (in the example below `ps`). For more information see result interpretation.
 
 You can set a debug.level field of SYS_PROB to 1 or 2, to get more information during the calculation, by default that value is zero.
 
@@ -423,7 +533,7 @@ ps$beta_single
 For systems consisting of multiple LSFs connected either in series or in parallel:
 
 ```{r}
-# Systemberechnungn (System aus zwei gleichen LSF´s)
+# System calculation (System of two identical LSFs)
 ps_sys <- SYS_PROB(
   sys_input = list(lsf, lsf),
   probMachines = list(machine),
@@ -440,6 +550,15 @@ Resulting system reliability indices:
 ps_sys$beta_sys
 ```
 
+The method of the system calculation is selected with the argument `calcType` of `$calculateSystemProbability()`:
+
+* `"simpleBounds"` (default) - bounds from the single reliability indices of `$runMachines()`. The machines can be FORM, SORM or other methods.
+* `"MCIS"` - importance sampling for serial and parallel systems.
+* `"MCC"` - crude Monte Carlo simulation of the system limit-state function.
+* `"MCSUS"` - subset simulation of the system limit-state function.
+
+A system analysis by FORM or SORM is not available. These methods only provide the single results for the simple bounds.
+
 ## Parametric studies (SYS_PARAM)
 
 Parametric analyses use the class `SYS_PARAM`. This extends `SYS_PROB` to iterate over varying input parameters defined by one or more `PARAM_BASEVAR` objects.
@@ -455,7 +574,7 @@ pvar_F_mod <- PARAM_BASEVAR(
 
 # yield strength in kN, for Mean the mean of the unshifted distribution must be specified.
 fy <- PROB_BASEVAR(
-  Name = "fy", DistributionType = "slnorm", Package = "brms", Mean = 265000, Sd = 25000, x0 = 160000
+  Name = "fy", DistributionType = "slnorm", Package = "TesiproV", Mean = 265000, Sd = 25000, x0 = 160000
 )
 
 # plastic moment of resistance in m³ - considered deterministic in this example
@@ -489,18 +608,18 @@ plot(para_values, beta_values, type = "l", xlab = "Force F [kN]", ylab = "Reliab
 
 ## Parallelisation in TesiproV
 ### General
-TesiproV supports parallel execution for Monte Carlo-based reliability methods, including `MC_IS()` and `MC_CRUDE()`. The package provides two parallel backends:
+TesiproV supports parallel execution for the Monte Carlo-based reliability methods `MC_IS()` and `MC_CRUDE()`. `MC_SubSam()` runs in a single process. The package provides two parallel backends:
 
 * "parallel" -- based on base R's parallel package  
 * "future" -- based on the future ecosystem
 
-TesiproV does not modify the active future plan. Users are responsible for configuring parallel execution explicitly.
+`MC_IS()` does not modify the active future plan, users configure parallel execution explicitly. `MC_IS()` and `MC_CRUDE()` do not modify the active future plan, users configure parallel execution explicitly.
 
 ### Reproducibility and Determinism
-All Monte Carlo simulations in TesiproV are designed to be:
+`MC_IS()` is designed to be:
 
-* Deterministic for a fixed seed  
-* Independent of the number of worker threads  
+* Deterministic for a fixed seed
+* Independent of the number of worker threads
 * Independent of the selected backend
 
 This means that:
@@ -509,9 +628,11 @@ MC_IS(..., seed = 123, use_threads = 1)
 MC_IS(..., seed = 123, use_threads = 8)
 ```
 
-will produce identical results.
+will produce identical results up to rounding errors.
 
 Determinism is guaranteed by performing all random number generation in the master process. Worker processes do not generate random numbers.
+
+`MC_CRUDE()` follows the same principle: all random numbers are generated in the master process, so the result for a fixed seed does not depend on the number of workers.
 
 ### Backend Overview
 1. The "parallel" Backend
@@ -545,7 +666,8 @@ Windows example:
 library(future)
 plan(multisession, workers = 8)
 
-MC_IS(..., backend = "future")If no future plan is set, execution will be sequential.
+MC_IS(..., backend = "future")
+# If no future plan is set, execution will be sequential.
 ```
 
 ### Recommended Parallel Settings
@@ -655,19 +777,20 @@ ps <- SYS_PARAM(
 
 ps$runMachines()
 
-local_beta <- ps$beta
-local_runtime <- ps$res_single[[1]][[1]]$runtime
+local_beta <- ps$beta_params
+local_runtime <- ps$res_params[[1]][[1]][[1]]$runtime
 
 # define path with setwd("...")
-ps$printResults("result_file") # Prints a report file in .txt format with all informations about the calculation
-ps$saveProject(4, "project_file") # stores the project in a file
+ps$printResults("result_file") # report file result_file.txt
+ps$saveProject(2, "project_file") # results in project_file_res.rds
+ps$saveProject(4, "project_file") # workspace in project_file.RData
 ```
 
 The results can be reloaded later via:
 
 ```{r, eval = FALSE}
-readRDS("example_proj_res.rds")
-load("example_proj.RData")
+readRDS("project_file_res.rds")
+load("project_file.RData")
 ```
 
 Debug output verbosity is controlled by field $debug.level (0=silent … 2=detailed).
@@ -713,7 +836,6 @@ ps$beta_single
 To demonstrate non-normally distributed basic variables, an example from Nowak & Collins (Example 5.11, Page 127/128) is calculated. Here normally distributed, lognormally distributed as well as gumbel distributed variables are used. While "norm" and "lnorm" are still contained in the standard scope of R (package "stats" belongs to base R) the Gumbel distribution is to be considered on the basis of the EVD-package (EVD := extreme value distributions).
 
 ```{r, results ='hide'}
-library("evd")
 X1 <- PROB_BASEVAR(Id = 1, Name = "Z", DistributionType = "norm", Mean = 100, Cov = 0.04) # kN/m²
 X2 <- PROB_BASEVAR(Id = 2, Name = "Fy", DistributionType = "lnorm", Mean = 40, Cov = 0.1) # m
 X3 <- PROB_BASEVAR(Id = 2, Name = "M", DistributionType = "gumbel", Package = "evd", Mean = 2000, Cov = 0.1) # m
@@ -789,13 +911,41 @@ The following lines are not executed because the calculation time is several min
 Results in the range of the above interval are to be expected. The results can be retrieved after the calculation using "$beta_sys".
 ```{r, eval = FALSE}
 params <- list("cov_user" = 0.05, "n_max" = 50000)
-ps$calculateSystemProbability("MC", params)
+ps$calculateSystemProbability("MCC", params)
 
-params <- list("cov_user" = 0.05, "n_max" = 50000)
 ps$calculateSystemProbability("MCIS", params)
 
-ps$calculateSystemProbability("MCSUS", params)
+params_sus <- list("Nsubset" = 10000, "p0" = 0.1)
+ps$calculateSystemProbability("MCSUS", params_sus)
 ```
+
+## Reliability with and without quality control
+
+The posterior variable can be used like any other basic variable. In this example the concrete strength `fc` from the section on quality control is the resistance and a normally distributed action `E` (mean 25, standard deviation 3, same unit) is the load effect. The reliability index is calculated with the prior and with the posterior distribution of the strength.
+
+```{r, results="hide", message=FALSE}
+E <- PROB_BASEVAR(Id = 3, Name = "E", Description = "Action effect",
+                  DistributionType = "norm", Mean = 25, Sd = 3)
+
+form <- PROB_MACHINE(name = "FORM", fCall = "FORM")
+
+lsf_prior <- SYS_LSF(vars = list(fc, E), name = "Prior")
+lsf_prior$func <- function(fc, E) fc - E
+lsf_prior$check()
+
+lsf_post <- SYS_LSF(vars = list(fc_post, E), name = "Posterior")
+lsf_post$func <- function(fc, E) fc - E
+lsf_post$check()
+
+ps <- SYS_PROB(sys_input = list(lsf_prior, lsf_post), probMachines = list(form))
+ps$runMachines()
+```
+
+```{r}
+ps$beta_single
+```
+
+The reliability index is higher after the acceptance of the lot. This is the effect of the quality control on the safety level.
 
 ## Parameterstudy
 
@@ -806,36 +956,36 @@ ps$calculateSystemProbability("MCSUS", params)
 
 
 ```{r, results="hide", warning=FALSE}
-var.d <- PARAM_BASEVAR(Id = 1, Name = "d", Description = "Stat. Nutzhöhe", DistributionType = "norm", Sd = 10, ParamType = "Mean", ParamValues = c(seq(200, 800, 50), seq(1000, 3000, 100)) + 10)
+var.d <- PARAM_BASEVAR(Id = 1, Name = "d", Description = "Effective depth", DistributionType = "norm", Sd = 10, ParamType = "Mean", ParamValues = c(seq(200, 800, 50), seq(1000, 3000, 100)) + 10)
 pre.d <- c(seq(200, 800, 50), seq(1000, 3000, 100))
 
-var.f_ck <- PROB_BASEVAR(Id = 2, Name = "f_ck", Description = "Char.Betondruckfestigkeit", Package = "TesiproV", DistributionType = "lt", DistributionParameters = c(3.85, 0.09, 3, 10))
+var.f_ck <- PROB_BASEVAR(Id = 2, Name = "f_ck", Description = "Concrete compressive strength", Package = "TesiproV", DistributionType = "lt", DistributionParameters = c(3.85, 0.09, 3, 10))
 pre.f_ck <- 35
 
-var.f_ywk <- PROB_BASEVAR(Id = 3, Name = "f_ywk", Description = "Zugfestigkeit Bügelbewehrung", DistributionType = "norm", Mean = 560, Cov = 0.02)
+var.f_ywk <- PROB_BASEVAR(Id = 3, Name = "f_ywk", Description = "Yield strength of shear reinforcement", DistributionType = "norm", Mean = 560, Cov = 0.02)
 pre.f_ywk <- 500
 
-var.f_yk <- PROB_BASEVAR(Id = 4, Name = "f_yk", Description = "Zugfestigkeit Längsbewehrung", DistributionType = "norm", Mean = 560, Sd = 30)
+var.f_yk <- PROB_BASEVAR(Id = 4, Name = "f_yk", Description = "Yield strength of longitudinal reinforcement", DistributionType = "norm", Mean = 560, Sd = 30)
 pre.f_yk <- 500
 
-var.rho_l <- PROB_BASEVAR(Id = 5, Name = "rho_l", Description = "Biegebewehrungsgrad", DistributionType = "norm", Mean = 0.01, Cov = 0.02)
+var.rho_l <- PROB_BASEVAR(Id = 5, Name = "rho_l", Description = "Longitudinal reinforcement ratio", DistributionType = "norm", Mean = 0.01, Cov = 0.02)
 pre.rho_l <- var.rho_l$Mean
 
-var.c_D <- PROB_BASEVAR(Id = 6, Name = "c_D", Description = "Stützendurchmesser", DistributionType = "norm", Mean = 500 + 0.003 * 500, Sd = 4 + 0.006 * 500)
+var.c_D <- PROB_BASEVAR(Id = 6, Name = "c_D", Description = "Column diameter", DistributionType = "norm", Mean = 500 + 0.003 * 500, Sd = 4 + 0.006 * 500)
 pre.c_D <- 500
 
-var.theta_c <- PROB_BASEVAR(Id = 7, Name = "theta_c", Description = "Modellunsicherheit c nach DIBT", DistributionType = "lnorm", Mean = 1.0644, Cov = 0.1679)
+var.theta_c <- PROB_BASEVAR(Id = 7, Name = "theta_c", Description = "Model uncertainty", DistributionType = "lnorm", Mean = 1.0644, Cov = 0.1679)
 
-var.gamma_c <- PROB_DETVAR(Id = 8, Name = "gamma_c", Description = "TSB Beton", Value = 1.5)
-var.gamma_s <- PROB_DETVAR(Id = 9, Name = "gamma_s", Description = "TSB Stahl", Value = 1.15)
-var.alpha_cc <- PROB_DETVAR(Id = 10, Name = "alpha_cc", Description = "Langzeitfaktor AlphaCC", Value = 0.85)
+var.gamma_c <- PROB_DETVAR(Id = 8, Name = "gamma_c", Description = "Partial safety factor concrete", Value = 1.5)
+var.gamma_s <- PROB_DETVAR(Id = 9, Name = "gamma_s", Description = "Partial safety factor steel", Value = 1.15)
+var.alpha_cc <- PROB_DETVAR(Id = 10, Name = "alpha_cc", Description = "Long-term factor alpha_cc", Value = 0.85)
 
 V_Ed <- c(
   0.6412447, 0.8760515, 1.1424185, 1.4399554, 1.7554079, 2.0188587, 2.3003489, 2.5997038, 2.9167825, 3.2514671, 3.6036567, 3.9732630,
   4.3602076, 6.0800504, 7.0424326, 8.0726216, 9.1702994, 10.3351829, 11.5670173, 12.8655715, 14.2306347, 15.6620132, 17.1595283, 18.7230145,
   20.3523175, 22.0472935, 23.8078076, 25.6337332, 27.5249511, 29.4813487, 31.5028193, 33.5892621, 35.7405811, 37.9566849
 )
-var.V_Ed <- PARAM_DETVAR(Id = 11, Name = "V_Ed", Description = "Einwirkende Querkraft", ParamValues = V_Ed)
+var.V_Ed <- PARAM_DETVAR(Id = 11, Name = "V_Ed", Description = "Applied shear force", ParamValues = V_Ed)
 
 lsf1 <- SYS_LSF(
   vars = list(
@@ -896,7 +1046,7 @@ plot(x = d, y = beta, type = "l")
 
 5. DIN EN 1992-1-1/NA: 2013-04: National Annex – Nationally determined parameters – DIN EN 1992-1-1: Design of concrete structures – Part 1-1: General rules and rules for buildings. 
 
-# Aknowledgement 
+# Acknowledgement
 
 The TesiproV package was developed within the framework of the research project “TesiproV”, funded by the German Federal Ministry for Economic Affairs and Energy (BMWi), and the research project “Qualitätskontrollen und Bauwerkszuverlässigkeit im Bauwesen”, funded by the German Institute for Building Technology (DIBt). The authors gratefully acknowledge the financial support provided by these institutions.
 
@@ -904,7 +1054,7 @@ The TesiproV package was developed within the framework of the research project 
 
 For questions, feedback or collaboration requests please contact us at:
 
-**TU Dortmund University – Chair of Structural Engineering**  
+**TU Dortmund University – Chair of Structural Concrete**  
 August-Schmidt-Strasse 8 · D‑44227 Dortmund · Germany  
 
 Email: [tesiprov.lmb.ab@tu-dortmund.de](mailto:tesiprov.lmb.ab@tu-dortmund.de)  

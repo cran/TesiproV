@@ -9,7 +9,8 @@ run_parallel(
   FUN,
   backend = c("parallel", "future"),
   use_threads = NULL,
-  cl = NULL
+  cl = NULL,
+  ...
 )
 }
 \arguments{
@@ -19,7 +20,7 @@ run_parallel(
 
 \item{backend}{Either "parallel" or "future".}
 
-\item{use_threads}{Number of workers (relevant for both back‑ends).}
+\item{use_threads}{Number of workers (relevant for both back-ends).}
 
 \item{cl}{Optional cluster object created with \code{parallel::makeCluster()}.
 Only required when using the \code{"parallel"} backend on Windows, where
@@ -28,13 +29,13 @@ Only required when using the \code{"parallel"} backend on Windows, where
 }
 \value{
 List of results (identical to the output of `parLapply` /
-  `future_lapply`). The list is **named** – the names are taken from the
+  `future_lapply`). The list is **named** - the names are taken from the
   split index (`split_idx`).
 }
 \description{
-Small wrapper that hides the branching between the two back‑ends.
+Small wrapper that hides the branching between the two back-ends.
   It always returns a **named list** whose names are identical to the names
   of the input split list. This guarantees that `unlist()` produces the same
-  named vector for both back‑ends, which is required by the unit tests.
+  named vector for both back-ends, which is required by the unit tests.
 }
 \keyword{internal}

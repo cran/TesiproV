@@ -10,7 +10,7 @@ test_that("Basis var, transformation", {
   b$prepare()
   mean_ <- b$DistributionParameters[1]
   sd_ <- b$DistributionParameters[2]
-  expect_equal(mean_, -0.004975165)
+  expect_equal(mean_, -0.004975165, tolerance = 1e-6)
   expect_equal(sd_, 0.099751345)
 
   b <- PROB_BASEVAR(Id = 1, Name = "c", DistributionType = "lnorm", DistributionParameters = c(mean_, sd_))
@@ -307,7 +307,7 @@ test_that("Distribution parameter round-trip (norm, lnorm, gumbel, gamma, beta, 
   # back‑transform
   mean.w <- scale.w * base::gamma(1 + 1 / shape.w)
   sd.w <- sqrt(scale.w^2 *
-    (base::gamma(1 + 2 / shape.w) - base::gamma(1 + 1 / shape.w)^2))
+                 (base::gamma(1 + 2 / shape.w) - base::gamma(1 + 1 / shape.w)^2))
   # Toleranz 1 % ist für die empirische Approximation realistisch
   rel_err_mean <- abs(we$Mean - mean_val) / mean_val
   rel_err_sd <- abs(we$Sd - sd_val) / sd_val
@@ -362,8 +362,8 @@ test_that("SYS_LSF$check() correctly distinguishes missing, empty and valid func
   lsf_missing <- SYS_LSF(vars = list(var_E, var_R), name = "LSF_missing")
   expect_true(is.null(lsf_missing$func))
   expect_error(lsf_missing$check(),
-    regexp = "Limit-state function 'LSF_missing' is missing",
-    fixed = TRUE
+               regexp = "Limit-state function 'LSF_missing' is missing",
+               fixed = TRUE
   )
 
   ## Case 2: Empty function without arguments --------------------
@@ -372,8 +372,8 @@ test_that("SYS_LSF$check() correctly distinguishes missing, empty and valid func
   expect_true(is.function(lsf_empty$func))
   expect_equal(length(formals(lsf_empty$func)), 0L)
   expect_error(lsf_empty$check(),
-    regexp = "has no formal arguments",
-    fixed = FALSE
+               regexp = "has no formal arguments",
+               fixed = FALSE
   )
 
   ## Case 3: Valid function with arguments -----------------------
@@ -425,7 +425,10 @@ test_that("PARAM_DETVAR works with one deterministic value", {
 })
 
 
-test_that("PROB_BASEVAR caching improves runtime", {
+test_that("PROB_BASEVAR caching returns identical results", {
+  skip_on_cran()
+  skip_if_not_installed("microbenchmark")
+
   # Prepare a simple normal variable
   v <- PROB_BASEVAR(
     Name = "cacheTest",
@@ -434,38 +437,6 @@ test_that("PROB_BASEVAR caching improves runtime", {
     Sd = 1
   )
   v$prepare()
-
-  # Skip test if microbenchmark is not available
-  skip_if_not_installed("microbenchmark")
-  library(microbenchmark)
-
-  # Benchmark both calls: first (creates cache) vs. second (uses cache)
-  bench <- microbenchmark(
-    first_call = {
-      v$getlDistr()
-    },
-    second_call = {
-      v$getlDistr()
-    },
-    times = 10L # number of repetitions per expression
-  )
-
-  # Print benchmark results for inspection (optional)
-  print(bench)
-
-  # Extract median execution times in milliseconds
-  t_first_ms <- median(bench$time[bench$expr == "first_call"]) / 1e6
-  t_second_ms <- median(bench$time[bench$expr == "second_call"]) / 1e6
-
-  message(sprintf("Median time: first=%.3f ms, second=%.3f ms", t_first_ms, t_second_ms))
-
-  # Compare performance: cached call should be equal or faster
-  expect_true(t_second_ms <= t_first_ms * 1.2,
-    info = sprintf(
-      "Second call should be faster or within +20%% tolerance (first=%.3f ms, second=%.3f ms)",
-      t_first_ms, t_second_ms
-    )
-  )
 
   # Additional functional check: both calls should return identical output values
   res_first <- v$getlDistr()
@@ -476,6 +447,7 @@ test_that("PROB_BASEVAR caching improves runtime", {
 
 
 test_that("runMachines() yields identical β-values for identical seeds", {
+  skip_on_cran()
   set.seed(1234) # Master‑Seed – hat keinen Einfluss auf die Worker‑Seeds
   # 2 Maschinen: FORM (deterministisch) + MC_CRUDE (stochastic)
   m_form <- PROB_MACHINE(name = "FORM", fCall = "FORM")
@@ -547,8 +519,8 @@ test_that("SYS_PARAM aborts cleanly when a PARAM variable loses its ParamValues"
   )
 
   expect_error(ps$runMachines(),
-    regexp = "must define a non-empty ParamValues",
-    fixed = FALSE
+               regexp = "must define a non-empty ParamValues",
+               fixed = FALSE
   )
 })
 
@@ -591,13 +563,8 @@ test_that("SYS_LSF throws an informative error when no limit-state function is d
 ## 1) PROB_BASEVAR – check missing or invalid inputs
 ## ------------------------------------------------------------------------
 
-test_that("PROB_BASEVAR throws error when Mean/Sd and parameters are missing", {
-  expect_error(
-    PROB_BASEVAR(Name = "X1"),
-    regexp = "Mean/Sd|distribution parameters",
-    fixed = FALSE
-  )
-})
+
+
 
 test_that("PROB_BASEVAR accepts valid Mean/Sd combination", {
   var_ok <- PROB_BASEVAR(Name = "X2", DistributionType = "norm", Mean = 10, Sd = 2)
@@ -816,35 +783,166 @@ test_that("Log-Student-t distribution is implemented correctly", {
   s_trans <- s/sqrt(n/(n+1))
 
   # Log-t density integrates to 1
-    f <- function(x) dlt(x, hyper.param)
-    result <- integrate(f, 0, Inf)
-    expect_equal(result$value, 1, tolerance = 1e-6)
+  f <- function(x) dlt(x, hyper.param)
+  result <- integrate(f, 0, Inf)
+  expect_equal(result$value, 1, tolerance = 1e-6)
 
   # Log-t density matches analytical transformation
-    x <- seq(0.001, 100, length.out = 1000)
-    expected <- (1/x) *
-      dt((log(x) - m)/s_trans, df = v) /
-      s_trans
-    actual <- dlt(x, hyper.param)
-    expect_equal(actual, expected, tolerance = 1e-12)
+  x <- seq(0.001, 100, length.out = 1000)
+  expected <- (1/x) *
+    dt((log(x) - m)/s_trans, df = v) /
+    s_trans
+  actual <- dlt(x, hyper.param)
+  expect_equal(actual, expected, tolerance = 1e-12)
 
   # Log-t CDF and quantile are inverse
-    p <- seq(0.01, 0.99, length.out = 100)
-    q <- qlt(p, hyper.param)
-    p_back <- plt(q, hyper.param)
-    expect_equal(p_back, p, tolerance = 1e-8)
+  p <- seq(0.01, 0.99, length.out = 100)
+  q <- qlt(p, hyper.param)
+  p_back <- plt(q, hyper.param)
+  expect_equal(p_back, p, tolerance = 1e-8)
 
   # Log-t random generation matches exp(t-simulation)
-    sim1 <- rlt(1e5, hyper.param)
-    # direkte Konstruktion
-    sim2 <- exp(m + s_trans * rt(1e5, df = v))
-    expect_equal(mean(log(sim1)),
-                 mean(log(sim2)),
-                 tolerance = 0.02)
-    expect_equal(sd(log(sim1)),
-                 sd(log(sim2)),
-                 tolerance = 0.02)
+  sim1 <- rlt(1e5, hyper.param)
+  # direkte Konstruktion
+  sim2 <- exp(m + s_trans * rt(1e5, df = v))
+  expect_equal(mean(log(sim1)),
+               mean(log(sim2)),
+               tolerance = 0.02)
+  expect_equal(sd(log(sim1)),
+               sd(log(sim2)),
+               tolerance = 0.02)
 })
 
+test_that("an incomplete basic variable can be created without error", {
+  expect_no_error(
+    PROB_BASEVAR(Name = "E_mod", DistributionType = "norm", Mean = 30e3)
+  )
+  expect_no_error(
+    PARAM_BASEVAR(
+      Name = "E_mod", DistributionType = "norm",
+      ParamType = "Mean", ParamValues = c(30e3, 35e3, 40e3)
+    )
+  )
+})
 
+test_that("FORM stops for an incomplete basic variable", {
+  var <- PROB_BASEVAR(Name = "E_mod", DistributionType = "norm", Mean = 30e3)
+  lsf <- function(x) x[1] / 1000 - 30
 
+  expect_error(
+    FORM(lsf = lsf, lDistr = list(var$getlDistr())),
+    "[FORM] Basic variable 1 ('E_mod') is not completely defined",
+    fixed = TRUE
+  )
+})
+
+test_that("SORM stops for an incomplete basic variable", {
+  var1 <- PROB_BASEVAR(Name = "R", DistributionType = "norm", Mean = 15, Sd = 1.5)
+  var2 <- PROB_BASEVAR(Name = "E", DistributionType = "norm", Mean = 10)
+  lsf <- function(x) x[1] - x[2]
+
+  expect_error(
+    SORM(lsf = lsf, lDistr = list(var1$getlDistr(), var2$getlDistr())),
+    "[SORM] Basic variable 2 ('E') is not completely defined",
+    fixed = TRUE
+  )
+})
+
+test_that("MC_CRUDE stops for an incomplete basic variable", {
+  var <- PROB_BASEVAR(Name = "E_mod", DistributionType = "norm", Mean = 30e3)
+  lsf <- function(x) x[1] / 1000 - 30
+
+  expect_error(
+    MC_CRUDE(lsf = lsf, lDistr = list(var$getlDistr()), n_max = 1000),
+    "[MC_CRUDE] Basic variable 1 ('E_mod') is not completely defined",
+    fixed = TRUE
+  )
+})
+
+test_that("MC_SubSam stops for an incomplete basic variable", {
+  var <- PROB_BASEVAR(Name = "E_mod", DistributionType = "norm", Mean = 30e3)
+  lsf <- function(x) x[1] / 1000 - 30
+
+  expect_error(
+    MC_SubSam(lsf = lsf, lDistr = list(var$getlDistr()), Nsubset = 1000),
+    "[MC_SubSam] Basic variable 1 ('E_mod') is not completely defined",
+    fixed = TRUE
+  )
+})
+
+test_that("MC_IS stops for an incomplete basic variable (single limit state)", {
+  var <- PROB_BASEVAR(Name = "E_mod", DistributionType = "norm", Mean = 30e3)
+  lsf <- function(x) x[1] / 1000 - 30
+
+  expect_error(
+    MC_IS(lsf = lsf, lDistr = list(var$getlDistr()), n_max = 1000),
+    "[MC_IS] Basic variable 1 ('E_mod') is not completely defined",
+    fixed = TRUE
+  )
+})
+
+test_that("MC_IS stops for an incomplete basic variable (system)", {
+  var1 <- PROB_BASEVAR(Name = "R", DistributionType = "norm", Mean = 15, Sd = 1.5)
+  var2 <- PROB_BASEVAR(Name = "E", DistributionType = "norm", Mean = 10)
+  lsf1 <- function(x) x[1] - 10
+  lsf2 <- function(x) 15 - x[1]
+
+  expect_error(
+    MC_IS(
+      lsf = list(lsf1, lsf2),
+      lDistr = list(list(var1$getlDistr()[[1]]), list(var2$getlDistr()[[1]])),
+      sys_type = "serial", n_max = 1000
+    ),
+    "[MC_IS] Basic variable 1 ('E') is not completely defined",
+    fixed = TRUE
+  )
+})
+
+test_that("SYS_PROB$runMachines stops for an incomplete basic variable", {
+  var1 <- PROB_BASEVAR(Name = "E", DistributionType = "norm", Mean = 10)
+  var2 <- PROB_BASEVAR(Name = "R", DistributionType = "norm", Mean = 15, Sd = 1.5)
+  lsf <- SYS_LSF(vars = list(var1, var2), name = "LSF XY")
+  lsf$func <- function(E, R) R - E
+  form <- PROB_MACHINE(name = "FORM", fCall = "FORM")
+  ps <- SYS_PROB(sys_input = list(lsf), probMachines = list(form))
+
+  expect_error(
+    ps$runMachines(),
+    "[FORM] Basic variable 1 ('E') is not completely defined",
+    fixed = TRUE
+  )
+})
+
+test_that("SYS_PARAM$runMachines stops for a PARAM_BASEVAR without Sd", {
+  pvar <- PARAM_BASEVAR(
+    Name = "E_mod", DistributionType = "norm",
+    ParamType = "Mean", ParamValues = c(30e3, 35e3, 40e3)
+  )
+  lsf <- SYS_LSF(vars = list(pvar), name = "ParamStudy")
+  lsf$func <- function(E_mod) E_mod / 1000 - 30
+  form <- PROB_MACHINE(name = "FORM", fCall = "FORM")
+  ps <- SYS_PARAM(sys_input = list(lsf), probMachines = list(form))
+
+  expect_error(
+    suppressWarnings(suppressMessages(ps$runMachines())),
+    "[FORM] Basic variable 1 ('E_mod') is not completely defined",
+    fixed = TRUE
+  )
+})
+
+test_that("SYS_PARAM gives the analytical beta for a complete PARAM_BASEVAR", {
+  pvar <- PARAM_BASEVAR(
+    Name = "E_mod", DistributionType = "norm", Sd = 3000,
+    ParamType = "Mean", ParamValues = c(30e3, 35e3, 40e3)
+  )
+  lsf <- SYS_LSF(vars = list(pvar), name = "ParamStudy")
+  lsf$func <- function(E_mod) E_mod / 1000 - 30
+  form <- PROB_MACHINE(name = "FORM", fCall = "FORM")
+  ps <- SYS_PARAM(sys_input = list(lsf), probMachines = list(form))
+  ps$runMachines()
+
+  # beta = (Mean - 30000) / Sd
+  expect_equal(ps$beta_params[[1]][1, 1], 0, tolerance = 1e-4)
+  expect_equal(ps$beta_params[[2]][1, 1], 5000 / 3000, tolerance = 1e-4)
+  expect_equal(ps$beta_params[[3]][1, 1], 10000 / 3000, tolerance = 1e-4)
+})

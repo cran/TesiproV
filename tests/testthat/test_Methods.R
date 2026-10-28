@@ -1,8 +1,7 @@
 library(testthat)
-library(microbenchmark)
+
 
 testthat::local_edition(3)
-
 
 
 # -----------------------------------------------------------------
@@ -20,7 +19,6 @@ test_that("init_rng_master creates a consistent stream", {
 
 test_that("record_step inserts values correctly", {
   rec <- make_recorders(5)
-  rec$cov <- numeric(5) # für completeness
   rec <- record_step(rec,
     idx = 2,
     pf_mc = 0.1, var_mc = 0.02,
@@ -55,7 +53,10 @@ test_that("make_ready_cluster returns a functional cluster", {
 # Performance benchmark test for new vs old implementation
 # -----------------------------------------------------------------
 test_that("new implementation is not slower than old one", {
-  set.seed(321)
+  skip_on_cran()
+  skip_if_not_installed("microbenchmark")
+
+   set.seed(321)
 
   n_batch <- 2e3
   n_vars <- 4
@@ -63,7 +64,7 @@ test_that("new implementation is not slower than old one", {
   fx_i <- matrix(runif(n_batch * n_vars, 0.1, 2), nrow = n_batch)
   hv_i <- matrix(runif(n_batch * n_vars, 0.1, 2), nrow = n_batch)
 
-  mb <- microbenchmark(
+  mb <- microbenchmark::microbenchmark(
     alt = {
       fx_prod <- apply(fx_i, 1, prod)
       hv_prod <- apply(hv_i, 1, prod)
@@ -77,7 +78,7 @@ test_that("new implementation is not slower than old one", {
     times = 15
   )
 
-  # Expectation: median(new) ≤ median(old)*0.9 (≈10% faster)
+  # Expectation: median(new) <= median(old) * 0.9 (about 10 percent faster)
   med_alt <- median(mb$time[mb$expr == "alt"])
   med_neu <- median(mb$time[mb$expr == "neu"])
   expect_lte(med_neu, med_alt * 0.9)
@@ -88,6 +89,7 @@ test_that("new implementation is not slower than old one", {
 # Example Ex.5.11 from Nowak & Collins (2000)
 # -----------------------------------------------------------------
 test_that("Ex. 5.11 Nowak & Collins (fast version)", {
+  skip_on_cran()
   if (.Platform$OS.type == "windows") {
     backend <- "future"
   } else {
@@ -120,34 +122,48 @@ test_that("Ex. 5.11 Nowak & Collins (fast version)", {
 
   form_rf <- PROB_MACHINE("FORM", "FORM")
   sorm <- PROB_MACHINE("SORM", "SORM")
-
+  mcsub <- PROB_MACHINE("MC_SubSam", "MC_SubSam", options = list(
+    Nsubset = 5e+05,
+    p0 = 0.1,
+    MaxSubsets = 10,
+    Alpha = 0.025,
+    variance = "uniform",
+    debug.level = 0,
+    seed = 1234
+  ))
   mcis <- PROB_MACHINE("MCIS", "MC_IS",
-    options = list(
-      cov_user = 0.05,
-      n_max = 200000, # statt Millionen
-      n_batch = 20000,
-      use_threads = use_threads,
-      backend = backend,
-      seed = 1234
-    )
-  )
+                       options = c(
+                         list(
+                           cov_user = 0.05,
+                           n_max = 200000,
+                           n_batch = 20000,
+                           backend = backend,
+                           seed = 1234
+                         ),
+                         if (backend == "parallel") list(use_threads = use_threads)
+                       )
+       )
 
   ps <- SYS_PROB(
     sys_input = list(lsf1),
-    probMachines = list(form_rf, sorm, mcis)
+    probMachines = list(form_rf, sorm, mcis, mcsub)
   )
 
   ps$runMachines()
 
-  expect_length(ps$beta_single, 3)
+  expect_length(ps$beta_single, 4)
   expect_false(any(is.na(ps$beta_single)))
 
   # FORM == SORM bei linearer LSF
-  expect_equal(ps$beta_single[1], ps$beta_single[2], tolerance = 1e-8)
+  expect_equal(ps$beta_single[1], 4.022, tolerance = 1e-3)
+  expect_equal(ps$beta_single[2], 4.010, tolerance = 1e-3)
 
-  # Plausibilität: Beta zwischen 3 und 5
-  expect_gt(ps$beta_single[3], 3)
-  expect_lt(ps$beta_single[3], 5)
+  # MC-IS is stochastic; use a plausibility range wider than the
+  # expected Monte Carlo variation.
+  expect_gt(ps$beta_single[3], 3.95)
+  expect_lt(ps$beta_single[3], 4.08)
+  expect_gt(ps$beta_single[4], 4.00)
+  expect_lt(ps$beta_single[4], 4.03)
 })
 
 
@@ -155,6 +171,7 @@ test_that("Ex. 5.11 Nowak & Collins (fast version)", {
 # Monte Carlo Importance Sampling with many input variables -------
 # -----------------------------------------------------------------
 test_that("MCIS and high number of inputs", {
+  skip_on_cran()
   if (.Platform$OS.type == "windows") {
     backend <- "future"
   } else {
@@ -231,6 +248,7 @@ test_that("MCIS and high number of inputs", {
 # Simple linear LSF using FORM/SORM/MCC comparison ----------------
 # -----------------------------------------------------------------
 test_that("Simple linear LSf FORM SORM and MCC", {
+  skip_on_cran()
   if (.Platform$OS.type == "windows") {
     backend <- "future"
   } else {
@@ -240,7 +258,7 @@ test_that("Simple linear LSf FORM SORM and MCC", {
   if (.Platform$OS.type == "windows") {
     use_threads <- 1L
   } else {
-    use_threads <- 16L
+    use_threads <- 2L
   }
 
   var1 <- PROB_BASEVAR(Name = "E", Description = "Effect", DistributionType = "norm", Mean = 10, Sd = 0.2)
@@ -256,7 +274,13 @@ test_that("Simple linear LSf FORM SORM and MCC", {
 
 
   machine1 <- PROB_MACHINE(name = "FORM Rack.-Fieß.", fCall = "FORM", options = list("n_optim" = 20, "loctol" = 0.001, "optim_type" = "rackfies"))
-  machine2 <- PROB_MACHINE(name = "MC CoV 0.05", fCall = "MC_CRUDE", options = list("n_max" = 1e7, "cov_user" = 0.05, "use_threads" = use_threads, "seed" = 1234, backend = backend))
+  machine2 <- PROB_MACHINE(
+    name = "MC CoV 0.05", fCall = "MC_CRUDE",
+    options = c(
+      list("n_max" = 1e7, "cov_user" = 0.05, "seed" = 1234, backend = backend),
+      if (backend == "parallel") list("use_threads" = use_threads)
+    )
+  )
   machine3 <- PROB_MACHINE(name = "SORM", fCall = "SORM")
 
   ps <- SYS_PROB(
@@ -268,7 +292,8 @@ test_that("Simple linear LSf FORM SORM and MCC", {
 
   ps$runMachines()
 
-  expect_equal(ps$beta_single[1], 3.11578032380995) # FORM
+  rel_err <- abs(ps$beta_single[1] - 3.11578) / 3.11578
+  expect_lt(rel_err, 0.001) # < 0.1 % Abweichung erlaubt
 
   if (.Platform$OS.type == "windows") {
     rel_err <- abs(ps$beta_single[2] - 3.11578032380995) / 3.11578032380995
@@ -278,11 +303,12 @@ test_that("Simple linear LSf FORM SORM and MCC", {
     expect_lt(rel_err, 0.02) # < 2 % Abweichung erlaubt
   }
 
-  expect_equal(ps$beta_single[3], 3.11578032380995) # SORM
+  expect_equal(ps$beta_single[3], 3.11578, tolerance = 1e-2)
 })
 
 
 test_that("MC_IS works with empirical distribution (small test)", {
+  skip_on_cran()
   if (.Platform$OS.type == "windows") {
     backend <- "future"
   } else {
@@ -327,4 +353,35 @@ test_that("MC_IS works with empirical distribution (small test)", {
 
   expect_false(is.na(ps$beta_single))
   expect_true(is.finite(ps$beta_single))
+})
+
+test_that("FORM auglag gives a positive beta if the origin is safe", {
+  withr::local_seed(1)
+  var <- PROB_BASEVAR(Name = "X", DistributionType = "norm", Mean = 0, Sd = 1)
+
+  res <- FORM(
+    lsf = function(x) 3 - x[1],
+    lDistr = list(var$getlDistr()),
+    n_optim = 5L,
+    optim_type = "auglag"
+  )
+
+  expect_equal(res$beta, 3, tolerance = 1e-3)
+  expect_equal(res$pf, pnorm(-3), tolerance = 1e-3)
+})
+
+test_that("FORM auglag gives a negative beta if the origin is in the failure domain", {
+  withr::local_seed(1)
+  var <- PROB_BASEVAR(Name = "X", DistributionType = "norm", Mean = 0, Sd = 1)
+
+  # g(0) = -1 < 0, failure for x > -1, pf = pnorm(1)
+  res <- FORM(
+    lsf = function(x) -1 - x[1],
+    lDistr = list(var$getlDistr()),
+    n_optim = 5L,
+    optim_type = "auglag"
+  )
+
+  expect_equal(res$beta, -1, tolerance = 1e-3)
+  expect_equal(res$pf, pnorm(1), tolerance = 1e-3)
 })

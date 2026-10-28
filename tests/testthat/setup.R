@@ -1,1 +1,1 @@
-testthat::local_edition(3)
+future::plan(future::sequential)
