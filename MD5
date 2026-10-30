@@ -1,7 +1,7 @@
-fc4584da70155e4da0c882bc954d241d *DESCRIPTION
+5eae9d0e78b285f9be00808256e6d79a *DESCRIPTION
 e8f349b2c3859cf680ada6a3b74b8bdf *LICENSE
 acdbe0e85d26d3c693e04b5c2baf4b95 *NAMESPACE
-99c19c19e44a3dd0fe6287a79b21a7b2 *NEWS.md
+018cf05da27f2f91ef27b2789d741822 *NEWS.md
 34a3aa07b38f82c74a73fc74ad36467c *R/MC_CRUDE.R
 9c24bcf1d895b38e97cb875f7d15794d *R/TesiproV.R
 0f44ce9bd0e4c90b61675fcbcdd1a4a8 *R/algo_FORM.R
@@ -33,7 +33,7 @@ ff1652b6d74f7112eb3419967c04adb3 *R/utils_debug.R
 6a3483b780a277c18e83baf547cdf39e *build/vignette.rds
 5f13955d444bed53a231b204c8b22a5c *inst/doc/TesiproV-Vignette.R
 47c11cfb5418b0f305cc6c99efeb4d0c *inst/doc/TesiproV-Vignette.Rmd
-ddd25429323eb110f05994ea67fda28d *inst/doc/TesiproV-Vignette.html
+fc883f0c488406c5a89d0b84adb8e0a3 *inst/doc/TesiproV-Vignette.html
 95f240b3c28b27cc6ce0aebb0e70eb77 *inst/extdata/benchmarks/benchmark_MCIS_suite.R
 dc4ef61f14efd9d470ca46176def2547 *inst/extdata/benchmarks/benchmark_MC_IS_future_chunking.R
 8a41325a92f04b8eef4bd33f89248c7d *inst/extdata/benchmarks/benchmark_MC_IS_future_memory.R
@@ -105,12 +105,12 @@ b26c925eaa8ddda80c978be9a0b39c62 *tests/testthat/test-bug-system-mcc-mcsus.R
 b455b6d91d2fcbc67145e73db36c2366 *tests/testthat/test-bug-system.R
 bf4d333245099e592ec2cc50f6668ffd *tests/testthat/test-log-space-helpers.R
 5559b45e54e136eb4fe88ea4dfff22a4 *tests/testthat/test-u-to-x.R
-ca06b7a6cea9d1f357736b11b91f5978 *tests/testthat/test_FORM_Rackwitz.R
+8d41a282e8de8aa4de792e5eea8cf710 *tests/testthat/test_FORM_Rackwitz.R
 45df26b2130e5585d29b157288397882 *tests/testthat/test_MCIS_system.R
 c164a043444bd58cdeb6b0890c25cce3 *tests/testthat/test_MC_CRUDE_multi.R
 7739686f8019ca88ffd2af2280012251 *tests/testthat/test_MC_Crude.R
 51b2f7eadaa0edce92a57844d2ebdb3a *tests/testthat/test_MC_IS_backend_contract.R
-783048fde54f9febdd1dfa8fcdc48779 *tests/testthat/test_MC_IS_chunk_reproducibility.R
+520c7f35aca2fc35896a0e01100de95e *tests/testthat/test_MC_IS_chunk_reproducibility.R
 8d28b7860dcffc8a5dbd11a7fd95b47c *tests/testthat/test_MC_IS_log_weighting.R
 d9289c26011ab31742b81deb4b47837b *tests/testthat/test_MC_IS_single.R
 3b79b189975b95cf0e78ef141f587e0f *tests/testthat/test_MC_IS_system_log_stability.R

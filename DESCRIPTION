@@ -1,8 +1,8 @@
 Package: TesiproV
 Type: Package
 Title: Reliability Analysis Methods for Structural Engineering
-Version: 1.0.0
-Date: 2026-10-27
+Version: 1.0.1
+Date: 2026-10-29
 Authors@R: c(person("Konstantin", "Nille-Hauf", role = "aut", email = "konstantin.nillehauf@googlemail.com"),
             person("Tânia", "Feiri", role = "aut", email = "tania.feiri@tu-dortmund.de"),
             person("Marcus", "Ricker", role = "aut", email = "marcus.ricker@tu-dortmund.de"),
@@ -21,11 +21,11 @@ VignetteBuilder: knitr
 Config/roxygen2/version: 8.1.1
 Config/testthat/edition: 3
 NeedsCompilation: no
-Packaged: 2026-10-28 15:48:10 UTC; smtiluxx
+Packaged: 2026-10-29 16:39:00 UTC; smtiluxx
 Author: Konstantin Nille-Hauf [aut],
   Tânia Feiri [aut],
   Marcus Ricker [aut],
   Jan Phillip Schulze-Ardey [ctb],
   Til Lux [aut, cre]
 Repository: CRAN
-Date/Publication: 2026-10-28 17:00:10 UTC
+Date/Publication: 2026-10-30 15:30:21 UTC

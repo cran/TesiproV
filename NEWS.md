@@ -1,3 +1,7 @@
+# TesiproV 1.0.1
+
+Tests only: fixes the test failures on macOS reported in the CRAN checks of version 1.0.0. The package code is unchanged.
+
 # TesiproV 1.0.0
 
 Consolidated release of the package, based on more than two years of use.
